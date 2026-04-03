@@ -1,0 +1,76 @@
+# Vibe Idler
+
+A terminal-based idle game where you run a vibe coding consultancy. Hire AI agents, buy hardware, unlock better LLMs, and watch your empire of autonomously-generated software grow.
+
+Built with Rust and [Ratatui](https://github.com/ratatui/ratatui).
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│ VIBE IDLER  |  $12,450  |  $8.3/s  |  64 compute  |  3/4 agents  | GPT │
+├──────────────────────────────────────────────────────────────────────────┤
+│ Commit Log        │ Active Projects       │ Agent Status                │
+│                   │                       │                             │
+│ a1b2c3 fix: ...   │ SaaS Platform  ██░ 67%│ Agent-1 [Backend]  Working  │
+│ d4e5f6 feat: ...  │ Mobile App     ███ 89%│ Agent-2 [Frontend] Working  │
+│ g7h8i9 refactor:..│ REST API       █░░ 23%│ Agent-3 [DevOps]   Working  │
+│                   │                       │                             │
+├──────────────────────────────────────────────────────────────────────────┤
+│ Income ▁▂▃▅▇█▇▅▆▇    Expenses ▁▁▂▁▁▂▁▁▁▂                              │
+├──────────────────────────────────────────────────────────────────────────┤
+│ [✓] Agent-2 completed "E-commerce Site" — earned $2,400                 │
+│ [!] Bug found in "SaaS Platform" — extra work needed                   │
+├──────────────────────────────────────────────────────────────────────────┤
+│ [S]hop  [P]rojects  [A]gents  [T]ech Tree  [V]Pivot  [?]Help  [Q]uit  │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+## How to Play
+
+1. **Buy hardware** in the Shop (`S`) to get compute power
+2. **Hire AI agents** to work on projects automatically
+3. **Accept contracts** for software projects that pay cash on completion
+4. **Upgrade your LLM** to improve code quality and reduce bugs
+5. **Pivot** (`V`) once you've earned enough to prestige-reset with permanent bonuses
+
+Agents auto-assign to available contracts, grow their skills over time, and generate a stream of realistic-looking commits as they work.
+
+## Game Systems
+
+- **14 project types** from Landing Pages to Enterprise Software, unlocked progressively
+- **8 hardware tiers** from Used Laptop to Data Center
+- **6 LLM tiers** affecting code quality and bug rates
+- **8 agent specializations** (Frontend, Backend, DevOps, Security, etc.) with skill growth
+- **Prestige system** — pivot your consultancy to earn reputation and permanent multipliers
+- **Recurring revenue** from SaaS and Open Source projects
+- **Auto-save** every 60 seconds
+
+## Install
+
+Requires the [Rust toolchain](https://rustup.rs/).
+
+```sh
+git clone https://github.com/aaron/vibe-idler.git
+cd vibe-idler
+cargo run --release
+```
+
+## Controls
+
+| Key | Action |
+|-----|--------|
+| `S` | Open Shop (hardware, LLMs, agents) |
+| `P` | View Projects |
+| `A` | View Agents |
+| `T` | Tech Tree |
+| `V` | Pivot (prestige reset) |
+| `?` | Help |
+| `Q` | Quit |
+
+**In menus:** `Tab`/arrows to switch tabs, `j`/`k` to navigate, `Enter` to buy, `Esc` to close.
+
+## Save Data
+
+Game state is saved to:
+- **Linux:** `~/.local/share/vibe-idler/save.json`
+- **macOS:** `~/Library/Application Support/vibe-idler/save.json`
+- **Windows:** `%APPDATA%\vibe-idler\save.json`
