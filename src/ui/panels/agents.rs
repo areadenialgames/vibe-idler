@@ -36,10 +36,11 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
         let (status_text, status_color) = match &agent.status {
             crate::game::state::AgentStatus::Idle => ("Idle".to_string(), theme::DIM),
             crate::game::state::AgentStatus::Working => {
+                let name_limit = inner.width.saturating_sub(14) as usize; // "  Working: " + padding
                 let proj_name = agent.current_project
                     .and_then(|i| app.state.active_projects.get(i))
                     .map(|p| {
-                        let n: String = p.name.chars().take(18).collect();
+                        let n: String = p.name.chars().take(name_limit).collect();
                         n
                     })
                     .unwrap_or_else(|| "...".into());

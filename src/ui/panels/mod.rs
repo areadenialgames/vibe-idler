@@ -5,3 +5,6 @@ pub mod finances;
 pub mod projects;
 pub mod shop;
 pub mod event_log;
+pub mod projects_modal;
+pub mod agents_modal;
+pub mod tech_tree_modal;

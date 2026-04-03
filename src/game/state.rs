@@ -28,6 +28,11 @@ pub struct GameState {
     pub income_history: Vec<f64>,
     pub expense_history: Vec<f64>,
 
+    #[serde(default)]
+    pub income_accumulator: f64,
+    #[serde(default)]
+    pub expense_accumulator: f64,
+
     pub prestige_bonuses: PrestigeBonuses,
 }
 
@@ -43,7 +48,7 @@ impl GameState {
             total_compute: 0.0,
             active_llm: LlmTier::FreeTier,
             agents: vec![],
-            max_agents: 1,
+            max_agents: 2,
             active_projects: vec![],
             completed_project_count: 0,
             available_contracts: vec![],
@@ -59,6 +64,8 @@ impl GameState {
             commit_log: vec![],
             income_history: vec![0.0; 60],
             expense_history: vec![0.0; 60],
+            income_accumulator: 0.0,
+            expense_accumulator: 0.0,
             prestige_bonuses: PrestigeBonuses::default(),
         };
 
@@ -216,11 +223,11 @@ impl LlmTier {
     pub fn name(&self) -> &'static str {
         match self {
             Self::FreeTier => "Free Tier",
-            Self::BasicSub => "Basic ($20/mo)",
-            Self::ProSub => "Pro ($50/mo)",
-            Self::TeamSub => "Team ($200/mo)",
-            Self::EnterpriseSub => "Enterprise ($1k/mo)",
-            Self::CustomCluster => "Custom ($5k/mo)",
+            Self::BasicSub => "Basic",
+            Self::ProSub => "Pro",
+            Self::TeamSub => "Team",
+            Self::EnterpriseSub => "Enterprise",
+            Self::CustomCluster => "Custom Cluster",
         }
     }
 

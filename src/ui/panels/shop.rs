@@ -139,6 +139,13 @@ fn render_llm_tab(frame: &mut Frame, area: Rect, app: &App) {
             Style::default().fg(theme::FG)
         };
 
+        let monthly = tier.monthly_cost();
+        let monthly_str = if monthly > 0.0 {
+            format!("{}/mo", formulas::format_cash(monthly))
+        } else {
+            "free".into()
+        };
+
         let status = if is_active {
             Span::styled(" [ACTIVE]", Style::default().fg(theme::ACCENT_PURPLE))
         } else {
@@ -148,9 +155,10 @@ fn render_llm_tab(frame: &mut Frame, area: Rect, app: &App) {
 
         lines.push(Line::from(vec![
             Span::styled(marker, Style::default().fg(theme::ACCENT_GREEN)),
-            Span::styled(format!("{:<22}", tier.name()), name_style),
+            Span::styled(format!("{:<16}", tier.name()), name_style),
             status,
-            Span::styled(format!("  quality:{:.1}", tier.quality()), Style::default().fg(theme::ACCENT_CYAN)),
+            Span::styled(format!("  {:<10}", monthly_str), Style::default().fg(theme::ACCENT_YELLOW)),
+            Span::styled(format!("quality:{:.1}", tier.quality()), Style::default().fg(theme::ACCENT_CYAN)),
         ]));
     }
 
@@ -183,11 +191,11 @@ fn render_agent_tab(frame: &mut Frame, area: Rect, app: &App) {
     } else {
         let cost_color = if can_afford { theme::ACCENT_GREEN } else { theme::ACCENT_RED };
         lines.push(Line::from(vec![
-            Span::styled("> Hire Agent  ", Style::default().fg(theme::ACCENT_GREEN).bold()),
+            Span::styled("> Spin Up Agent  ", Style::default().fg(theme::ACCENT_GREEN).bold()),
             Span::styled(formulas::format_cash(cost), Style::default().fg(cost_color)),
         ]));
         lines.push(Line::from(Span::styled(
-            "  Press Enter to hire",
+            "  Press Enter to spin up",
             Style::default().fg(theme::DIM),
         )));
     }

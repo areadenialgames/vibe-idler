@@ -21,6 +21,14 @@ pub fn save_game(state: &GameState) -> io::Result<()> {
     Ok(())
 }
 
+pub fn delete_save() -> io::Result<()> {
+    let path = save_path();
+    if path.exists() {
+        std::fs::remove_file(&path)?;
+    }
+    Ok(())
+}
+
 pub fn load_game() -> io::Result<Option<GameState>> {
     let path = save_path();
     if !path.exists() {

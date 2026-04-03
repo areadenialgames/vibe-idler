@@ -41,7 +41,7 @@ pub fn perform_pivot(state: &mut GameState) {
         lines_written: 0,
         bugs_introduced: 0,
     });
-    state.max_agents = 1;
+    state.max_agents = 2;
     state.active_projects.clear();
     state.completed_project_count = 0;
     state.available_contracts.clear();

@@ -67,7 +67,12 @@ pub fn render(frame: &mut Frame, app: &App) {
     // Render modal overlay if active
     match app.ui.modal {
         Modal::Shop => panels::shop::render(frame, app),
+        Modal::Projects => panels::projects_modal::render(frame, app),
+        Modal::Agents => panels::agents_modal::render(frame, app),
+        Modal::TechTree => panels::tech_tree_modal::render(frame, app),
         Modal::Help => render_help_modal(frame),
+        Modal::ConfirmPivot => render_confirm_pivot_modal(frame, app),
+        Modal::ConfirmReset => render_confirm_reset_modal(frame),
         Modal::None => {}
     }
 }
@@ -86,12 +91,15 @@ fn render_help_modal(frame: &mut Frame) {
         Line::from(Span::styled("  S - Open Shop (buy hardware, LLMs, agents)", Style::default().fg(theme::FG))),
         Line::from(Span::styled("  ? - This help screen", Style::default().fg(theme::FG))),
         Line::from(Span::styled("  Q - Quit game", Style::default().fg(theme::FG))),
+        Line::from(Span::styled("  R - Reset game (delete save)", Style::default().fg(theme::ACCENT_RED))),
         Line::from(""),
         Line::from(Span::styled("In Shop:", Style::default().fg(theme::ACCENT_YELLOW).bold())),
         Line::from(Span::styled("  Tab/Arrow - Switch tabs", Style::default().fg(theme::FG))),
         Line::from(Span::styled("  j/k       - Navigate items", Style::default().fg(theme::FG))),
         Line::from(Span::styled("  Enter     - Buy selected item", Style::default().fg(theme::FG))),
         Line::from(Span::styled("  Esc       - Close", Style::default().fg(theme::FG))),
+        Line::from(""),
+        Line::from(Span::styled("Design (c) 2026 - Area Denial LLC", Style::default().fg(theme::DIM))),
         Line::from(""),
         Line::from(Span::styled("Press Esc to close", Style::default().fg(theme::DIM))),
     ];
@@ -103,6 +111,73 @@ fn render_help_modal(frame: &mut Frame) {
         .style(Style::default().bg(theme::BG));
 
     let paragraph = Paragraph::new(help_text).block(block);
+    frame.render_widget(paragraph, area);
+}
+
+fn render_confirm_pivot_modal(frame: &mut Frame, app: &App) {
+    let area = centered_rect(60, 40, frame.area());
+    frame.render_widget(ratatui::widgets::Clear, area);
+
+    let rep = crate::game::prestige::calculate_pivot_reputation(&app.state);
+    let new_total = app.state.reputation + rep;
+
+    let text = vec![
+        Line::from(""),
+        Line::from(Span::styled("  Why are you pivoting?", Style::default().fg(theme::ACCENT_PURPLE).bold())),
+        Line::from(""),
+        Line::from(Span::styled(format!("  \"{}\"", app.ui.pivot_story), Style::default().fg(theme::ACCENT_YELLOW))),
+        Line::from(""),
+        Line::from(Span::styled("  You will lose all progress but gain:", Style::default().fg(theme::FG))),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("    Reputation: ", Style::default().fg(theme::DIM)),
+            Span::styled(format!("+{:.0}", rep), Style::default().fg(theme::ACCENT_GREEN)),
+            Span::styled(format!("  (total: {:.0})", new_total), Style::default().fg(theme::DIM)),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  Enter", Style::default().fg(theme::ACCENT_PURPLE).bold()),
+            Span::styled(" to pivot    ", Style::default().fg(theme::FG)),
+            Span::styled("Esc", Style::default().fg(theme::ACCENT_GREEN).bold()),
+            Span::styled(" to cancel", Style::default().fg(theme::FG)),
+        ]),
+    ];
+
+    let block = Block::default()
+        .title(Span::styled(" Pivot Consultancy ", Style::default().fg(theme::ACCENT_PURPLE).bold()))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme::ACCENT_PURPLE))
+        .style(Style::default().bg(theme::BG));
+
+    let paragraph = Paragraph::new(text).block(block).wrap(ratatui::widgets::Wrap { trim: false });
+    frame.render_widget(paragraph, area);
+}
+
+fn render_confirm_reset_modal(frame: &mut Frame) {
+    let area = centered_rect(40, 20, frame.area());
+    frame.render_widget(ratatui::widgets::Clear, area);
+
+    let text = vec![
+        Line::from(""),
+        Line::from(Span::styled("  Are you sure you want to reset?", Style::default().fg(theme::ACCENT_RED).bold())),
+        Line::from(""),
+        Line::from(Span::styled("  All progress will be lost.", Style::default().fg(theme::FG))),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  Enter", Style::default().fg(theme::ACCENT_RED).bold()),
+            Span::styled(" to confirm    ", Style::default().fg(theme::FG)),
+            Span::styled("Esc", Style::default().fg(theme::ACCENT_GREEN).bold()),
+            Span::styled(" to cancel", Style::default().fg(theme::FG)),
+        ]),
+    ];
+
+    let block = Block::default()
+        .title(Span::styled(" Reset Game ", Style::default().fg(theme::ACCENT_RED).bold()))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme::ACCENT_RED))
+        .style(Style::default().bg(theme::BG));
+
+    let paragraph = Paragraph::new(text).block(block);
     frame.render_widget(paragraph, area);
 }
 

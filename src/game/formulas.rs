@@ -30,7 +30,7 @@ pub fn project_payment(base_payment: f64, difficulty: u32, reputation_bonus: f64
 }
 
 pub fn bug_chance(llm_quality: f64, difficulty: u32, bug_reduction: f64) -> f64 {
-    (0.002 * (1.0 / llm_quality) * (difficulty as f64 / 5.0) * (1.0 - bug_reduction)).max(0.0)
+    (0.0004 * (1.0 / llm_quality) * (difficulty as f64 / 5.0) * (1.0 - bug_reduction)).max(0.0)
 }
 
 pub fn prestige_reputation_earned(lifetime_cash_this_run: f64) -> f64 {

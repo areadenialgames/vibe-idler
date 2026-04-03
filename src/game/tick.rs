@@ -63,10 +63,10 @@ pub fn tick(state: &mut GameState) {
                 }
             }
 
-            // Bug chance
+            // Bug chance (cap at 5 bugs per project to prevent infinite spirals)
             let bug_prob = formulas::bug_chance(llm_quality, state.active_projects[proj_idx].difficulty, 0.0);
-            if rng.gen_bool(bug_prob.min(1.0)) {
-                let penalty = rng.gen_range(0.10..0.30);
+            if state.active_projects[proj_idx].bug_count < 5 && rng.gen_bool(bug_prob.min(1.0)) {
+                let penalty = rng.gen_range(0.05..0.15);
                 state.active_projects[proj_idx].total_work_units *= 1.0 + penalty;
                 state.active_projects[proj_idx].bug_count += 1;
                 state.agents[i].bugs_introduced += 1;
@@ -107,6 +107,7 @@ pub fn tick(state: &mut GameState) {
         if payment > 0.0 {
             state.cash += payment;
             state.lifetime_cash += payment;
+            state.income_accumulator += payment;
         }
 
         state.completed_project_count += 1;
@@ -147,18 +148,39 @@ pub fn tick(state: &mut GameState) {
     // Check milestone unlocks
     crate::game::tech_tree::check_milestone_unlocks(state);
 
-    // Generate new contracts periodically
-    if state.total_ticks % 500 == 0 && state.available_contracts.len() < 5 {
+    // Unlock agent slots based on completed projects
+    let completed = state.completed_project_count;
+    if completed >= 2 && state.max_agents < 3 {
+        state.max_agents = 3;
+    }
+    if completed >= 5 && state.max_agents < 5 {
+        state.max_agents = 5;
+    }
+    if completed >= 12 && state.max_agents < 10 {
+        state.max_agents = 10;
+    }
+    if completed >= 20 && state.max_agents < 25 {
+        state.max_agents = 25;
+    }
+    if completed >= 30 && state.max_agents < 100 {
+        state.max_agents = 100;
+    }
+
+    // Generate new contracts — faster with more agents, higher cap
+    let agent_count = state.agents.len().max(1);
+    let gen_interval = (500 / agent_count as u64).max(50); // faster with more agents, min every 5s
+    let max_contracts = 5 + agent_count; // scale contract pool with team size
+    if state.total_ticks % gen_interval == 0 && state.available_contracts.len() < max_contracts {
         let contract = crate::game::projects::generate_contract(state, &mut rng);
         state.available_contracts.push(contract);
     }
 
     // Track income/expense history for sparklines (every 50 ticks = 5s)
     if state.total_ticks % 50 == 0 {
-        let income = state.income_per_tick() * 50.0;
-        let expense = state.expense_per_month() / TICKS_PER_GAME_MONTH as f64 * 50.0;
-        state.income_history.push(income);
-        state.expense_history.push(expense);
+        state.income_history.push(state.income_accumulator);
+        state.expense_history.push(state.expense_accumulator);
+        state.income_accumulator = 0.0;
+        state.expense_accumulator = 0.0;
         if state.income_history.len() > 60 {
             state.income_history.remove(0);
         }
@@ -229,6 +251,7 @@ fn process_month(state: &mut GameState, rng: &mut impl Rng) {
     if monthly_income > 0.0 {
         state.cash += monthly_income;
         state.lifetime_cash += monthly_income;
+        state.income_accumulator += monthly_income;
         state.event_log.push(GameEvent {
             tick: state.total_ticks,
             kind: EventKind::Income,
@@ -240,6 +263,7 @@ fn process_month(state: &mut GameState, rng: &mut impl Rng) {
     let expenses = state.expense_per_month();
     if expenses > 0.0 {
         state.cash -= expenses;
+        state.expense_accumulator += expenses;
         state.event_log.push(GameEvent {
             tick: state.total_ticks,
             kind: EventKind::Expense,

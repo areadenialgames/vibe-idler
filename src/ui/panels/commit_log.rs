@@ -31,8 +31,8 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
                 _ => theme::DIM,
             };
 
-            let msg_width = area.width.saturating_sub(4) as usize;
-            let truncated: String = commit.message.chars().take(msg_width.saturating_sub(20)).collect();
+            let msg_width = area.width.saturating_sub(6) as usize; // borders + "* " prefix
+            let truncated: String = commit.message.chars().take(msg_width).collect();
 
             let line = Line::from(vec![
                 Span::styled("* ", Style::default().fg(prefix_color)),

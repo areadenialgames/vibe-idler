@@ -48,9 +48,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
             }
         };
 
-        let name: String = proj.name.chars().take(20).collect();
+        let name_width = inner.width.saturating_sub(7) as usize; // space + pct + borders
+        let name: String = proj.name.chars().take(name_width).collect();
         lines.push(Line::from(vec![
-            Span::styled(format!(" {:<20}", name), Style::default().fg(theme::FG)),
+            Span::styled(format!(" {:<width$}", name, width = name_width), Style::default().fg(theme::FG)),
             Span::styled(format!("{:>3}%", pct), Style::default().fg(theme::ACCENT_GREEN)),
         ]));
         lines.push(Line::from(vec![
@@ -84,9 +85,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
                 format!("{}/mo", formulas::format_cash(*monthly))
             }
         };
-        let name: String = contract.name.chars().take(22).collect();
+        let contract_name_width = inner.width.saturating_sub(18) as usize; // " > " + payment + difficulty
+        let name: String = contract.name.chars().take(contract_name_width).collect();
         bottom_lines.push(Line::from(vec![
-            Span::styled(format!(" > {:<22}", name), Style::default().fg(theme::FG)),
+            Span::styled(format!(" > {:<width$}", name, width = contract_name_width), Style::default().fg(theme::FG)),
             Span::styled(payment_str, Style::default().fg(theme::ACCENT_GREEN)),
             Span::styled(format!(" d:{}", contract.difficulty), Style::default().fg(theme::DIM)),
         ]));

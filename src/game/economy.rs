@@ -142,28 +142,28 @@ fn hire_agent(state: &mut GameState) {
             bugs_introduced: 0,
         });
 
-        // Unlock more agent slots at milestones
-        let count = state.agents.len();
-        if count >= 2 && state.max_agents < 3 {
+        // Unlock more agent slots based on completed projects
+        let completed = state.completed_project_count;
+        if completed >= 2 && state.max_agents < 3 {
             state.max_agents = 3;
         }
-        if count >= 3 && state.max_agents < 5 {
+        if completed >= 5 && state.max_agents < 5 {
             state.max_agents = 5;
         }
-        if count >= 5 && state.max_agents < 10 {
+        if completed >= 12 && state.max_agents < 10 {
             state.max_agents = 10;
         }
-        if count >= 10 && state.max_agents < 25 {
+        if completed >= 20 && state.max_agents < 25 {
             state.max_agents = 25;
         }
-        if count >= 25 && state.max_agents < 100 {
+        if completed >= 30 && state.max_agents < 100 {
             state.max_agents = 100;
         }
 
         state.event_log.push(GameEvent {
             tick: state.total_ticks,
             kind: EventKind::AgentHired,
-            message: format!("Hired Agent-{} for {}", id + 1, formulas::format_cash(cost)),
+            message: format!("Spun up Agent-{} for {}", id + 1, formulas::format_cash(cost)),
         });
     }
 }

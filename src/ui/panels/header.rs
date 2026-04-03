@@ -10,7 +10,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
 
     let income_per_sec = s.income_per_tick() * 10.0; // 10 ticks/sec
 
-    let spans = vec![
+    let mut spans = vec![
         Span::styled("  VIBE IDLER", Style::default().fg(theme::ACCENT_CYAN).bold()),
         Span::styled("  |  ", Style::default().fg(theme::BORDER)),
         Span::styled(formulas::format_cash(s.cash), Style::default().fg(theme::ACCENT_GREEN).bold()),
@@ -40,6 +40,14 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
             Style::default().fg(theme::ACCENT_PURPLE),
         ),
     ];
+
+    if cfg!(debug_assertions) && app.ticks_per_frame > 1 {
+        spans.push(Span::styled("  |  ", Style::default().fg(theme::BORDER)));
+        spans.push(Span::styled(
+            format!("{}x", app.ticks_per_frame),
+            Style::default().fg(theme::ACCENT_RED).bold(),
+        ));
+    }
 
     let block = Block::default()
         .borders(Borders::ALL)
