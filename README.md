@@ -46,10 +46,23 @@ Agents auto-assign to available contracts, grow their skills over time, and gene
 
 ## Install
 
+### Pre-built binaries
+
+Download the latest release for your platform from the [Releases page](https://github.com/areadenialgames/vibe-idler/releases).
+
+Available for Linux (x86_64, aarch64), macOS (x86_64, Apple Silicon), and Windows (x86_64).
+
+**macOS note:** After downloading, you may need to remove the quarantine attribute:
+```sh
+xattr -d com.apple.quarantine vibe-idler
+```
+
+### Build from source
+
 Requires the [Rust toolchain](https://rustup.rs/).
 
 ```sh
-git clone https://github.com/aaron/vibe-idler.git
+git clone https://github.com/areadenialgames/vibe-idler.git
 cd vibe-idler
 cargo run --release
 ```
