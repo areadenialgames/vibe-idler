@@ -4,25 +4,7 @@ A terminal-based idle game where you run a vibe coding consultancy. Hire AI agen
 
 Built with Rust and [Ratatui](https://github.com/ratatui/ratatui).
 
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│ VIBE IDLER  |  $12,450  |  $8.3/s  |  64 compute  |  3/4 agents  | GPT │
-├──────────────────────────────────────────────────────────────────────────┤
-│ Commit Log        │ Active Projects       │ Agent Status                │
-│                   │                       │                             │
-│ a1b2c3 fix: ...   │ SaaS Platform  ██░ 67%│ Agent-1 [Backend]  Working  │
-│ d4e5f6 feat: ...  │ Mobile App     ███ 89%│ Agent-2 [Frontend] Working  │
-│ g7h8i9 refactor:..│ REST API       █░░ 23%│ Agent-3 [DevOps]   Working  │
-│                   │                       │                             │
-├──────────────────────────────────────────────────────────────────────────┤
-│ Income ▁▂▃▅▇█▇▅▆▇    Expenses ▁▁▂▁▁▂▁▁▁▂                              │
-├──────────────────────────────────────────────────────────────────────────┤
-│ [✓] Agent-2 completed "E-commerce Site" — earned $2,400                 │
-│ [!] Bug found in "SaaS Platform" — extra work needed                   │
-├──────────────────────────────────────────────────────────────────────────┤
-│ [S]hop  [P]rojects  [A]gents  [T]ech Tree  [V]Pivot  [?]Help  [Q]uit  │
-└──────────────────────────────────────────────────────────────────────────┘
-```
+![screenshot](screenshot.png)
 
 ## How to Play
 
