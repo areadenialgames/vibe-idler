@@ -4,7 +4,7 @@ A terminal-based idle game where you run a vibe coding consultancy. Spin up AI a
 
 Built with Rust and [Ratatui](https://github.com/ratatui/ratatui).
 
-![screenshot](screenshot.png?v=2)
+![screenshot](screenshot-v2.png)
 
 ## How to Play
 
