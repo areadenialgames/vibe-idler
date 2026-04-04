@@ -9,7 +9,7 @@ use std::io;
 use std::time::{Duration, Instant};
 
 use crossterm::{
-    event::{self, Event},
+    event::{self, Event, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -46,7 +46,9 @@ fn main() -> io::Result<()> {
         let timeout = tick_rate.saturating_sub(last_tick.elapsed());
         if event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
-                app.handle_input(key);
+                if key.kind == KeyEventKind::Press {
+                    app.handle_input(key);
+                }
             }
         }
 
