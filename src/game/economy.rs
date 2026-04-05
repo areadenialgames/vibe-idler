@@ -7,6 +7,7 @@ pub fn try_purchase(state: &mut GameState, tab: usize, item_idx: usize) {
         1 => buy_llm(state, item_idx),
         2 => hire_agent(state),
         3 => {} // Automation - Sprint 6
+        4 => buy_perk(state, item_idx),
         _ => {}
     }
 }
@@ -68,6 +69,13 @@ fn unlock_next_hardware(state: &mut GameState, purchased: HardwareKind) {
         HardwareKind::GpuCluster => Some("hw_data_center"),
         HardwareKind::DataCenter => None,
     };
+
+    // Unlock perks based on hardware progression
+    match purchased {
+        HardwareKind::Workstation => add_unlock(state, "perk_ambient_audio"),
+        HardwareKind::ServerRack => add_unlock(state, "perk_radio"),
+        _ => {}
+    }
     if let Some(id) = next {
         if !state.unlocked_upgrades.contains(&id.to_string()) {
             state.unlocked_upgrades.push(id.to_string());
@@ -165,5 +173,39 @@ fn hire_agent(state: &mut GameState) {
             kind: EventKind::AgentHired,
             message: format!("Spun up Agent-{} for {}", id + 1, formulas::format_cash(cost)),
         });
+    }
+}
+
+fn buy_perk(state: &mut GameState, item_idx: usize) {
+    let all = PerkKind::all();
+    if item_idx >= all.len() {
+        return;
+    }
+    let perk = all[item_idx];
+
+    // Must be visible (unlocked) and not already owned
+    if !state.unlocked_upgrades.contains(&perk.unlock_id().to_string()) {
+        return;
+    }
+    if state.unlocked_upgrades.contains(&perk.owned_id()) {
+        return;
+    }
+
+    let cost = perk.cost();
+    if state.cash >= cost {
+        state.cash -= cost;
+        state.unlocked_upgrades.push(perk.owned_id());
+
+        state.event_log.push(GameEvent {
+            tick: state.total_ticks,
+            kind: EventKind::Upgrade,
+            message: format!("Installed {} for {}", perk.name(), formulas::format_cash(cost)),
+        });
+    }
+}
+
+fn add_unlock(state: &mut GameState, id: &str) {
+    if !state.unlocked_upgrades.contains(&id.to_string()) {
+        state.unlocked_upgrades.push(id.to_string());
     }
 }

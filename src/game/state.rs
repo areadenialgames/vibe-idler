@@ -34,6 +34,17 @@ pub struct GameState {
     pub expense_accumulator: f64,
 
     pub prestige_bonuses: PrestigeBonuses,
+
+    #[serde(default = "default_true")]
+    pub audio_enabled: bool,
+    #[serde(default = "default_true")]
+    pub radio_enabled: bool,
+    #[serde(default)]
+    pub radio_station: usize,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl GameState {
@@ -67,6 +78,9 @@ impl GameState {
             income_accumulator: 0.0,
             expense_accumulator: 0.0,
             prestige_bonuses: PrestigeBonuses::default(),
+            audio_enabled: true,
+            radio_enabled: true,
+            radio_station: 0,
         };
 
         // Start with one generalist agent
@@ -517,5 +531,49 @@ impl Default for PrestigeBonuses {
             starting_cash_bonus: 0.0,
             extra_agent_slots: 0,
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Copy)]
+pub enum PerkKind {
+    OfficeAmbiance,
+    StreamingSub,
+}
+
+impl PerkKind {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::OfficeAmbiance => "Office Soundscape",
+            Self::StreamingSub => "Premium Streaming Sub",
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::OfficeAmbiance => "Ambient background audio for your workspace. Mechanical keyboards, humming servers, and the occasional coffee grinder.",
+            Self::StreamingSub => "A music streaming subscription for the whole office. Keeps morale high during crunch time.",
+        }
+    }
+
+    pub fn cost(&self) -> f64 {
+        match self {
+            Self::OfficeAmbiance => 8000.0,
+            Self::StreamingSub => 75000.0,
+        }
+    }
+
+    pub fn unlock_id(&self) -> &'static str {
+        match self {
+            Self::OfficeAmbiance => "perk_ambient_audio",
+            Self::StreamingSub => "perk_radio",
+        }
+    }
+
+    pub fn owned_id(&self) -> String {
+        format!("{}_owned", self.unlock_id())
+    }
+
+    pub fn all() -> &'static [PerkKind] {
+        &[Self::OfficeAmbiance, Self::StreamingSub]
     }
 }

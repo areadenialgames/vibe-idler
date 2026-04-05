@@ -22,6 +22,11 @@ pub fn perform_pivot(state: &mut GameState) {
     state.prestige_bonuses.starting_cash_bonus = 500.0 + rep * 50.0;
     state.prestige_bonuses.extra_agent_slots = rep.sqrt().floor() as u32;
 
+    // Preserve audio preferences across pivots
+    let audio_enabled = state.audio_enabled;
+    let radio_enabled = state.radio_enabled;
+    let radio_station = state.radio_station;
+
     // Reset game state (keep prestige)
     let starting_cash = 500.0 + state.prestige_bonuses.starting_cash_bonus;
     state.cash = starting_cash;
@@ -57,6 +62,11 @@ pub fn perform_pivot(state: &mut GameState) {
     state.event_log.clear();
     state.income_history = vec![0.0; 60];
     state.expense_history = vec![0.0; 60];
+
+    // Restore audio preferences
+    state.audio_enabled = audio_enabled;
+    state.radio_enabled = radio_enabled;
+    state.radio_station = radio_station;
 
     state.event_log.push(GameEvent {
         tick: 0,

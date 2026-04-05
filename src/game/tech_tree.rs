@@ -5,6 +5,15 @@
 use super::state::GameState;
 
 pub fn check_milestone_unlocks(state: &mut GameState) {
+    // Perk unlocks based on hardware ownership
+    use super::state::HardwareKind;
+    if state.hardware.iter().any(|h| h.kind == HardwareKind::Workstation && h.count > 0) {
+        add_unlock(state, "perk_ambient_audio");
+    }
+    if state.hardware.iter().any(|h| h.kind == HardwareKind::ServerRack && h.count > 0) {
+        add_unlock(state, "perk_radio");
+    }
+
     let completed = state.completed_project_count;
 
     // Project unlocks based on completed projects

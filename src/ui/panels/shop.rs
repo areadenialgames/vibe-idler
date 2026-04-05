@@ -24,7 +24,7 @@ pub fn render(frame: &mut Frame, app: &App) {
     }
 
     // Tab bar
-    let tab_titles = vec!["Hardware", "LLM", "Agents", "Automation"];
+    let tab_titles = vec!["Hardware", "LLM", "Agents", "Automation", "Experimental"];
     let tabs = Tabs::new(tab_titles.iter().map(|t| Line::from(*t)).collect::<Vec<_>>())
         .select(app.ui.shop_tab)
         .style(Style::default().fg(theme::DIM))
@@ -47,6 +47,7 @@ pub fn render(frame: &mut Frame, app: &App) {
         1 => render_llm_tab(frame, sections[1], app),
         2 => render_agent_tab(frame, sections[1], app),
         3 => render_automation_tab(frame, sections[1], app),
+        4 => render_experimental_tab(frame, sections[1], app),
         _ => {}
     }
 
@@ -146,8 +147,11 @@ fn render_llm_tab(frame: &mut Frame, area: Rect, app: &App) {
             "free".into()
         };
 
+        let is_below_active = tier.quality() < app.state.active_llm.quality();
         let status = if is_active {
             Span::styled(" [ACTIVE]", Style::default().fg(theme::ACCENT_PURPLE))
+        } else if is_below_active {
+            Span::styled(" [OWNED]", Style::default().fg(theme::DIM))
         } else {
             let cost_color = if can_afford { theme::ACCENT_GREEN } else { theme::ACCENT_RED };
             Span::styled(format!(" {}", formulas::format_cash(cost)), Style::default().fg(cost_color))
@@ -227,6 +231,63 @@ fn render_automation_tab(frame: &mut Frame, area: Rect, _app: &App) {
             Style::default().fg(theme::DIM),
         )),
     ];
+
+    let widget = Paragraph::new(lines);
+    frame.render_widget(widget, area);
+}
+
+fn render_experimental_tab(frame: &mut Frame, area: Rect, app: &App) {
+    let mut lines: Vec<Line> = vec![
+        Line::from(Span::styled(" Office Perks", Style::default().fg(theme::ACCENT_PURPLE).bold())),
+        Line::from(""),
+    ];
+
+    for (i, perk) in PerkKind::all().iter().enumerate() {
+        let visible = app.state.unlocked_upgrades.contains(&perk.unlock_id().to_string());
+        let owned = app.state.unlocked_upgrades.contains(&perk.owned_id());
+        let selected = i == app.ui.selected_item;
+
+        if !visible {
+            lines.push(Line::from(Span::styled(
+                format!("  {} [LOCKED]", perk.name()),
+                Style::default().fg(theme::DIM),
+            )));
+            continue;
+        }
+
+        if owned {
+            let marker = if selected { "> " } else { "  " };
+            lines.push(Line::from(vec![
+                Span::styled(marker, Style::default().fg(theme::ACCENT_PURPLE)),
+                Span::styled(perk.name(), Style::default().fg(theme::ACCENT_PURPLE)),
+                Span::styled(" [OWNED]", Style::default().fg(theme::ACCENT_PURPLE)),
+            ]));
+            continue;
+        }
+
+        let cost = perk.cost();
+        let can_afford = app.state.cash >= cost;
+        let marker = if selected { "> " } else { "  " };
+        let name_style = if selected {
+            Style::default().fg(theme::ACCENT_GREEN).bold()
+        } else {
+            Style::default().fg(theme::FG)
+        };
+        let cost_color = if can_afford { theme::ACCENT_GREEN } else { theme::ACCENT_RED };
+
+        lines.push(Line::from(vec![
+            Span::styled(marker, Style::default().fg(theme::ACCENT_GREEN)),
+            Span::styled(format!("{:<24}", perk.name()), name_style),
+            Span::styled(formulas::format_cash(cost), Style::default().fg(cost_color)),
+        ]));
+
+        if selected {
+            lines.push(Line::from(Span::styled(
+                format!("    {}", perk.description()),
+                Style::default().fg(theme::DIM),
+            )));
+        }
+    }
 
     let widget = Paragraph::new(lines);
     frame.render_widget(widget, area);

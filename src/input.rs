@@ -19,6 +19,10 @@ pub enum Action {
     SpeedUp,
     SpeedDown,
     ResetGame,
+    ToggleAmbientAudio,
+    ToggleRadio,
+    NextStation,
+    PrevStation,
 }
 
 pub fn map_key(key: KeyEvent, ui: &UiState) -> Option<Action> {
@@ -35,6 +39,11 @@ pub fn map_key(key: KeyEvent, ui: &UiState) -> Option<Action> {
             KeyCode::Tab | KeyCode::Right => Some(Action::TabNext),
             KeyCode::BackTab | KeyCode::Left => Some(Action::TabPrev),
             KeyCode::Enter => Some(Action::Confirm),
+            KeyCode::Char('m') if ui.modal == Modal::Help => Some(Action::ToggleAmbientAudio),
+            KeyCode::Char('n') if ui.modal == Modal::Help => Some(Action::ToggleRadio),
+            KeyCode::Char(',') if ui.modal == Modal::Help => Some(Action::PrevStation),
+            KeyCode::Char('.') if ui.modal == Modal::Help => Some(Action::NextStation),
+            KeyCode::Char('r') if ui.modal == Modal::Help => Some(Action::ResetGame),
             _ => None,
         };
     }

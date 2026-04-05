@@ -70,18 +70,18 @@ pub fn render(frame: &mut Frame, app: &App) {
         Modal::Projects => panels::projects_modal::render(frame, app),
         Modal::Agents => panels::agents_modal::render(frame, app),
         Modal::TechTree => panels::tech_tree_modal::render(frame, app),
-        Modal::Help => render_help_modal(frame),
+        Modal::Help => render_help_modal(frame, app),
         Modal::ConfirmPivot => render_confirm_pivot_modal(frame, app),
         Modal::ConfirmReset => render_confirm_reset_modal(frame),
         Modal::None => {}
     }
 }
 
-fn render_help_modal(frame: &mut Frame) {
+fn render_help_modal(frame: &mut Frame, app: &App) {
     let area = centered_rect(60, 60, frame.area());
     frame.render_widget(ratatui::widgets::Clear, area);
 
-    let help_text = vec![
+    let mut help_text = vec![
         Line::from(Span::styled("VIBE IDLER - Help", Style::default().fg(theme::ACCENT_CYAN).bold())),
         Line::from(""),
         Line::from(Span::styled("You run a vibe coding consultancy.", Style::default().fg(theme::FG))),
@@ -98,11 +98,47 @@ fn render_help_modal(frame: &mut Frame) {
         Line::from(Span::styled("  j/k       - Navigate items", Style::default().fg(theme::FG))),
         Line::from(Span::styled("  Enter     - Buy selected item", Style::default().fg(theme::FG))),
         Line::from(Span::styled("  Esc       - Close", Style::default().fg(theme::FG))),
-        Line::from(""),
-        Line::from(Span::styled("Design (c) 2026 - Area Denial LLC", Style::default().fg(theme::DIM))),
-        Line::from(""),
-        Line::from(Span::styled("Press Esc to close", Style::default().fg(theme::DIM))),
     ];
+
+    let has_ambient = app.state.unlocked_upgrades.contains(&"perk_ambient_audio_owned".to_string());
+    let has_radio = app.state.unlocked_upgrades.contains(&"perk_radio_owned".to_string());
+
+    if has_ambient || has_radio {
+        help_text.push(Line::from(""));
+        help_text.push(Line::from(Span::styled("Audio:", Style::default().fg(theme::ACCENT_YELLOW).bold())));
+        if has_ambient {
+            let status = if app.state.audio_enabled { "ON" } else { "OFF" };
+            help_text.push(Line::from(Span::styled(
+                format!("  M - Toggle Ambient Sound [{}]", status),
+                Style::default().fg(theme::ACCENT_PURPLE),
+            )));
+        }
+        if has_radio {
+            let status = if app.state.radio_enabled { "ON" } else { "OFF" };
+            help_text.push(Line::from(Span::styled(
+                format!("  N - Toggle Streaming Sub [{}]", status),
+                Style::default().fg(theme::ACCENT_PURPLE),
+            )));
+            if !app.audio_playback.station_names.is_empty() {
+                let station_name = app.audio_playback.station_names
+                    .get(app.state.radio_station)
+                    .map(String::as_str)
+                    .unwrap_or("???");
+                help_text.push(Line::from(Span::styled(
+                    format!("  ,/. - Station: {} ({}/{})",
+                        station_name,
+                        app.state.radio_station + 1,
+                        app.audio_playback.station_names.len()),
+                    Style::default().fg(theme::ACCENT_PURPLE),
+                )));
+            }
+        }
+    }
+
+    help_text.push(Line::from(""));
+    help_text.push(Line::from(Span::styled("Design (c) 2026 - Area Denial LLC", Style::default().fg(theme::DIM))));
+    help_text.push(Line::from(""));
+    help_text.push(Line::from(Span::styled("Press Esc to close", Style::default().fg(theme::DIM))));
 
     let block = Block::default()
         .title(" Help ")

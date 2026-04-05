@@ -1,4 +1,5 @@
 mod app;
+mod audio;
 mod game;
 mod input;
 mod save;
@@ -34,7 +35,8 @@ fn main() -> io::Result<()> {
         Ok(Some(saved)) => saved,
         _ => game::state::GameState::new(),
     };
-    let mut app = app::App::with_state(state);
+    let audio = audio::AudioHandle::new();
+    let mut app = app::App::with_state(state, audio);
 
     let tick_rate = Duration::from_millis(100);
     let mut last_tick = Instant::now();
@@ -68,7 +70,8 @@ fn main() -> io::Result<()> {
         }
     }
 
-    // Save on exit
+    // Shutdown audio and save on exit
+    app.shutdown_audio();
     let _ = save::save_game(&app.state);
 
     disable_raw_mode()?;

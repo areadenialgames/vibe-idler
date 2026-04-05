@@ -1,7 +1,11 @@
 [package]
 name = "vibe-idler"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
+
+[features]
+default = ["audio"]
+audio = ["dep:rodio"]
 
 [dependencies]
 ratatui = "0.30"
@@ -11,3 +15,4 @@ serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
 rand = "0.8"
 dirs = "5"
+rodio = { version = "0.19", optional = true }
