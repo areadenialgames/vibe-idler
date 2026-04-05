@@ -68,8 +68,8 @@ cat > "$CONTENTS/Info.plist" << PLIST
     <string>12.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
-    <key>NSAppleEventsUsageDescription</key>
-    <string>Vibe Idler needs to open Terminal to run the game.</string>
+    <key>CFBundleDocumentTypes</key>
+    <array/>
 </dict>
 </plist>
 PLIST
