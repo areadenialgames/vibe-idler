@@ -1,7 +1,6 @@
 #!/bin/bash
 # Creates a macOS .app bundle from the vibe-idler binary + assets
 # Usage: ./scripts/bundle-macos.sh <binary-path> <output-dir> [arch]
-# arch defaults to detecting from the binary, or pass "arm64" or "x86_64"
 
 set -e
 
@@ -32,15 +31,10 @@ RESOURCES="$CONTENTS/Resources"
 rm -rf "$APP_BUNDLE"
 mkdir -p "$MACOS" "$RESOURCES"
 
-# Copy the game binary
+# Copy the game binary and assets together (binary expects assets/ as sibling)
 cp "$BINARY" "$MACOS/vibe-idler-bin"
-
-# Copy assets into Resources (not MacOS — avoids codesign issues with data files)
 cp -R assets "$RESOURCES/assets"
-find "$RESOURCES/assets" -name ".DS_Store" -delete
-
-# Symlink so the binary finds assets/ relative to its working directory
-ln -s ../Resources/assets "$MACOS/assets"
+find "$RESOURCES" -name ".DS_Store" -delete
 
 # Compile the Swift launcher for the target architecture
 echo "Compiling launcher..."
