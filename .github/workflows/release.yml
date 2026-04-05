@@ -51,23 +51,24 @@ jobs:
 
           security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
 
-      - name: Sign binary
+      - name: Create .app bundle
+        run: ./scripts/bundle-macos.sh target/${{ matrix.target }}/release/vibe-idler release-pkg
+
+      - name: Sign .app bundle
         run: |
-          codesign --force --options runtime \
+          codesign --force --options runtime --deep \
             --sign "${{ secrets.APPLE_SIGNING_IDENTITY }}" \
             --identifier "com.areadenial.vibe-idler" \
             --timestamp \
-            target/${{ matrix.target }}/release/vibe-idler
+            "release-pkg/Vibe Idler.app"
 
-          codesign -dv target/${{ matrix.target }}/release/vibe-idler 2>&1
+          echo "Verifying signature..."
+          codesign -dv --verbose=2 "release-pkg/Vibe Idler.app" 2>&1
 
-      - name: Package with assets
+      - name: Package for notarization
         run: |
-          mkdir -p release-pkg/vibe-idler
-          cp target/${{ matrix.target }}/release/vibe-idler release-pkg/vibe-idler/
-          cp -R assets release-pkg/vibe-idler/
-          find release-pkg -name ".DS_Store" -delete
-          cd release-pkg && zip -r ../vibe-idler-macos-${{ matrix.arch }}.zip vibe-idler/
+          cd release-pkg
+          zip -r ../vibe-idler-macos-${{ matrix.arch }}.zip "Vibe Idler.app"
 
       - name: Notarize
         env:
@@ -80,6 +81,13 @@ jobs:
             --password "$APPLE_APP_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
             --wait
+
+      - name: Staple and repackage
+        run: |
+          xcrun stapler staple "release-pkg/Vibe Idler.app"
+          rm vibe-idler-macos-${{ matrix.arch }}.zip
+          cd release-pkg
+          zip -r ../vibe-idler-macos-${{ matrix.arch }}.zip "Vibe Idler.app"
 
       - name: Cleanup keychain
         if: always()
