@@ -56,19 +56,31 @@ jobs:
 
       - name: Sign .app bundle
         run: |
-          codesign --force --options runtime --deep \
-            --sign "${{ secrets.APPLE_SIGNING_IDENTITY }}" \
+          IDENTITY="${{ secrets.APPLE_SIGNING_IDENTITY }}"
+
+          # Sign inner binaries first with hardened runtime
+          codesign --force --options runtime \
+            --sign "$IDENTITY" \
+            --identifier "com.areadenial.vibe-idler.bin" \
+            --timestamp \
+            "release-pkg/Vibe Idler.app/Contents/MacOS/vibe-idler-bin"
+
+          codesign --force --options runtime \
+            --sign "$IDENTITY" \
+            --identifier "com.areadenial.vibe-idler.launcher" \
+            --timestamp \
+            "release-pkg/Vibe Idler.app/Contents/MacOS/vibe-idler"
+
+          # Sign the bundle (seals everything)
+          codesign --force --options runtime \
+            --sign "$IDENTITY" \
             --identifier "com.areadenial.vibe-idler" \
             --timestamp \
             "release-pkg/Vibe Idler.app"
 
           echo "Verifying signature..."
           codesign -dv --verbose=2 "release-pkg/Vibe Idler.app" 2>&1
-
-      - name: Package for notarization
-        run: |
-          cd release-pkg
-          zip -r ../vibe-idler-macos-${{ matrix.arch }}.zip "Vibe Idler.app"
+          codesign --verify --deep --strict "release-pkg/Vibe Idler.app" 2>&1
 
       - name: Notarize
         env:
@@ -76,6 +88,9 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          cd release-pkg
+          zip -r ../vibe-idler-macos-${{ matrix.arch }}.zip "Vibe Idler.app"
+          cd ..
           xcrun notarytool submit vibe-idler-macos-${{ matrix.arch }}.zip \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_PASSWORD" \
@@ -84,21 +99,28 @@ jobs:
 
       - name: Staple and repackage
         run: |
+          # Wait for ticket propagation then staple (best-effort)
+          sleep 15
+          STAPLED=false
           for attempt in 1 2 3 4 5; do
             if xcrun stapler staple "release-pkg/Vibe Idler.app"; then
               echo "Staple succeeded on attempt $attempt"
+              STAPLED=true
               break
-            fi
-            if [ $attempt -eq 5 ]; then
-              echo "Staple failed after 5 attempts"
-              exit 1
             fi
             echo "Staple attempt $attempt failed, waiting 30s..."
             sleep 30
           done
-          rm vibe-idler-macos-${{ matrix.arch }}.zip
-          cd release-pkg
-          zip -r ../vibe-idler-macos-${{ matrix.arch }}.zip "Vibe Idler.app"
+
+          if [ "$STAPLED" = true ]; then
+            echo "Repackaging with stapled ticket..."
+            rm vibe-idler-macos-${{ matrix.arch }}.zip
+            cd release-pkg
+            zip -r ../vibe-idler-macos-${{ matrix.arch }}.zip "Vibe Idler.app"
+          else
+            echo "WARNING: Staple failed but notarization succeeded."
+            echo "Gatekeeper will check the ticket online instead."
+          fi
 
       - name: Cleanup keychain
         if: always()
