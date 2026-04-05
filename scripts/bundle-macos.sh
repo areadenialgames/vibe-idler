@@ -6,12 +6,17 @@ set -e
 
 BINARY="$1"
 OUTPUT_DIR="$2"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
 
 if [ -z "$BINARY" ] || [ -z "$OUTPUT_DIR" ]; then
     echo "Usage: $0 <binary-path> <output-dir>"
     exit 1
 fi
+
+# Determine architecture from binary
+ARCH=$(lipo -archs "$BINARY" 2>/dev/null || echo "arm64")
+echo "Building .app bundle for architecture: $ARCH"
 
 APP_NAME="Vibe Idler"
 APP_BUNDLE="$OUTPUT_DIR/${APP_NAME}.app"
@@ -22,30 +27,18 @@ RESOURCES="$CONTENTS/Resources"
 rm -rf "$APP_BUNDLE"
 mkdir -p "$MACOS" "$RESOURCES"
 
-# Copy binary and assets
+# Copy the game binary
 cp "$BINARY" "$MACOS/vibe-idler-bin"
+
+# Copy assets
 cp -R assets "$MACOS/assets"
+find "$MACOS/assets" -name ".DS_Store" -delete
 
-# Create launcher script that opens in Terminal
-cat > "$MACOS/vibe-idler" << 'LAUNCHER'
-#!/bin/bash
-DIR="$(cd "$(dirname "$0")" && pwd)"
-
-# If we're already in a terminal, just run
-if [ -t 0 ] && [ -t 1 ]; then
-    cd "$DIR"
-    exec "$DIR/vibe-idler-bin"
-fi
-
-# Otherwise, open Terminal.app and run there
-osascript -e "
-tell application \"Terminal\"
-    activate
-    do script \"cd \\\"$DIR\\\" && ./vibe-idler-bin; exit\"
-end tell
-"
-LAUNCHER
-chmod +x "$MACOS/vibe-idler"
+# Compile the Swift launcher for the target architecture
+echo "Compiling launcher..."
+swiftc -target "${ARCH}-apple-macosx12.0" \
+    -O -o "$MACOS/vibe-idler" \
+    "$SCRIPT_DIR/launcher.swift"
 
 # Create Info.plist
 cat > "$CONTENTS/Info.plist" << PLIST
@@ -65,7 +58,7 @@ cat > "$CONTENTS/Info.plist" << PLIST
     <string>${VERSION}</string>
     <key>CFBundleShortVersionString</key>
     <string>${VERSION}</string>
-    <key>CFBundlePackagetype</key>
+    <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
     <string>????</string>
@@ -73,8 +66,8 @@ cat > "$CONTENTS/Info.plist" << PLIST
     <string>12.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
-    <key>LSUIElement</key>
-    <false/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Vibe Idler needs to open Terminal to run the game.</string>
 </dict>
 </plist>
 PLIST
