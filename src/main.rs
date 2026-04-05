@@ -1,10 +1,10 @@
 mod app;
 mod audio;
+mod data;
 mod game;
 mod input;
 mod save;
 mod ui;
-mod data;
 
 use std::io;
 use std::time::{Duration, Instant};

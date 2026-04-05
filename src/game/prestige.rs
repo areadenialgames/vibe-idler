@@ -40,6 +40,7 @@ pub fn perform_pivot(state: &mut GameState) {
         id: 0,
         name: "Agent-1".into(),
         specialization: AgentSpec::Generalist,
+        agent_class: AgentClass::Software,
         skill_level: 1.0,
         status: AgentStatus::Idle,
         current_project: None,
@@ -47,6 +48,11 @@ pub fn perform_pivot(state: &mut GameState) {
         bugs_introduced: 0,
     });
     state.max_agents = 2;
+    state.max_humanoids = 0;
+    state.max_space_drones = 0;
+    state.max_computronium_units = 0;
+    state.phase = GamePhase::Consultancy;
+    state.mega_projects = MegaProjects::default();
     state.active_projects.clear();
     state.completed_project_count = 0;
     state.available_contracts.clear();

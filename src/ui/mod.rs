@@ -1,5 +1,5 @@
-pub mod theme;
 pub mod panels;
+pub mod theme;
 
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
@@ -13,7 +13,7 @@ pub fn render(frame: &mut Frame, app: &App) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // Header
+            Constraint::Length(3), // Header
             Constraint::Min(10),   // Main content
             Constraint::Length(3), // Sparklines
             Constraint::Length(6), // Event log
@@ -73,6 +73,7 @@ pub fn render(frame: &mut Frame, app: &App) {
         Modal::Help => render_help_modal(frame, app),
         Modal::ConfirmPivot => render_confirm_pivot_modal(frame, app),
         Modal::ConfirmReset => render_confirm_reset_modal(frame),
+        Modal::Victory => panels::victory_modal::render(frame, app),
         Modal::None => {}
     }
 }
@@ -82,30 +83,78 @@ fn render_help_modal(frame: &mut Frame, app: &App) {
     frame.render_widget(ratatui::widgets::Clear, area);
 
     let mut help_text = vec![
-        Line::from(Span::styled("VIBE IDLER - Help", Style::default().fg(theme::ACCENT_CYAN).bold())),
+        Line::from(Span::styled(
+            "VIBE IDLER - Help",
+            Style::default().fg(theme::ACCENT_CYAN).bold(),
+        )),
         Line::from(""),
-        Line::from(Span::styled("You run a vibe coding consultancy.", Style::default().fg(theme::FG))),
-        Line::from(Span::styled("AI agents build software that earns money.", Style::default().fg(theme::FG))),
+        Line::from(Span::styled(
+            "You run a vibe coding consultancy.",
+            Style::default().fg(theme::FG),
+        )),
+        Line::from(Span::styled(
+            "AI agents build software that earns money.",
+            Style::default().fg(theme::FG),
+        )),
         Line::from(""),
-        Line::from(Span::styled("Controls:", Style::default().fg(theme::ACCENT_YELLOW).bold())),
-        Line::from(Span::styled("  S - Open Shop (buy hardware, LLMs, agents)", Style::default().fg(theme::FG))),
-        Line::from(Span::styled("  ? - This help screen", Style::default().fg(theme::FG))),
-        Line::from(Span::styled("  Q - Quit game", Style::default().fg(theme::FG))),
-        Line::from(Span::styled("  R - Reset game (delete save)", Style::default().fg(theme::ACCENT_RED))),
+        Line::from(Span::styled(
+            "Controls:",
+            Style::default().fg(theme::ACCENT_YELLOW).bold(),
+        )),
+        Line::from(Span::styled(
+            "  S - Open Shop (buy hardware, LLMs, agents)",
+            Style::default().fg(theme::FG),
+        )),
+        Line::from(Span::styled(
+            "  ? - This help screen",
+            Style::default().fg(theme::FG),
+        )),
+        Line::from(Span::styled(
+            "  Q - Quit game",
+            Style::default().fg(theme::FG),
+        )),
+        Line::from(Span::styled(
+            "  R - Reset game (delete save)",
+            Style::default().fg(theme::ACCENT_RED),
+        )),
         Line::from(""),
-        Line::from(Span::styled("In Shop:", Style::default().fg(theme::ACCENT_YELLOW).bold())),
-        Line::from(Span::styled("  Tab/Arrow - Switch tabs", Style::default().fg(theme::FG))),
-        Line::from(Span::styled("  j/k       - Navigate items", Style::default().fg(theme::FG))),
-        Line::from(Span::styled("  Enter     - Buy selected item", Style::default().fg(theme::FG))),
-        Line::from(Span::styled("  Esc       - Close", Style::default().fg(theme::FG))),
+        Line::from(Span::styled(
+            "In Shop:",
+            Style::default().fg(theme::ACCENT_YELLOW).bold(),
+        )),
+        Line::from(Span::styled(
+            "  Tab/Arrow - Switch tabs",
+            Style::default().fg(theme::FG),
+        )),
+        Line::from(Span::styled(
+            "  j/k       - Navigate items",
+            Style::default().fg(theme::FG),
+        )),
+        Line::from(Span::styled(
+            "  Enter     - Buy selected item",
+            Style::default().fg(theme::FG),
+        )),
+        Line::from(Span::styled(
+            "  Esc       - Close",
+            Style::default().fg(theme::FG),
+        )),
     ];
 
-    let has_ambient = app.state.unlocked_upgrades.contains(&"perk_ambient_audio_owned".to_string());
-    let has_radio = app.state.unlocked_upgrades.contains(&"perk_radio_owned".to_string());
+    let has_ambient = app
+        .state
+        .unlocked_upgrades
+        .contains(&"perk_ambient_audio_owned".to_string());
+    let has_radio = app
+        .state
+        .unlocked_upgrades
+        .contains(&"perk_radio_owned".to_string());
 
     if has_ambient || has_radio {
         help_text.push(Line::from(""));
-        help_text.push(Line::from(Span::styled("Audio:", Style::default().fg(theme::ACCENT_YELLOW).bold())));
+        help_text.push(Line::from(Span::styled(
+            "Audio:",
+            Style::default().fg(theme::ACCENT_YELLOW).bold(),
+        )));
         if has_ambient {
             let status = if app.state.audio_enabled { "ON" } else { "OFF" };
             help_text.push(Line::from(Span::styled(
@@ -120,15 +169,19 @@ fn render_help_modal(frame: &mut Frame, app: &App) {
                 Style::default().fg(theme::ACCENT_PURPLE),
             )));
             if !app.audio_playback.station_names.is_empty() {
-                let station_name = app.audio_playback.station_names
+                let station_name = app
+                    .audio_playback
+                    .station_names
                     .get(app.state.radio_station)
                     .map(String::as_str)
                     .unwrap_or("???");
                 help_text.push(Line::from(Span::styled(
-                    format!("  ,/. - Station: {} ({}/{})",
+                    format!(
+                        "  ,/. - Station: {} ({}/{})",
                         station_name,
                         app.state.radio_station + 1,
-                        app.audio_playback.station_names.len()),
+                        app.audio_playback.station_names.len()
+                    ),
                     Style::default().fg(theme::ACCENT_PURPLE),
                 )));
             }
@@ -136,9 +189,15 @@ fn render_help_modal(frame: &mut Frame, app: &App) {
     }
 
     help_text.push(Line::from(""));
-    help_text.push(Line::from(Span::styled("Design (c) 2026 - Area Denial LLC", Style::default().fg(theme::DIM))));
+    help_text.push(Line::from(Span::styled(
+        "Design (c) 2026 - Area Denial LLC",
+        Style::default().fg(theme::DIM),
+    )));
     help_text.push(Line::from(""));
-    help_text.push(Line::from(Span::styled("Press Esc to close", Style::default().fg(theme::DIM))));
+    help_text.push(Line::from(Span::styled(
+        "Press Esc to close",
+        Style::default().fg(theme::DIM),
+    )));
 
     let block = Block::default()
         .title(" Help ")
@@ -159,16 +218,31 @@ fn render_confirm_pivot_modal(frame: &mut Frame, app: &App) {
 
     let text = vec![
         Line::from(""),
-        Line::from(Span::styled("  Why are you pivoting?", Style::default().fg(theme::ACCENT_PURPLE).bold())),
+        Line::from(Span::styled(
+            "  Why are you pivoting?",
+            Style::default().fg(theme::ACCENT_PURPLE).bold(),
+        )),
         Line::from(""),
-        Line::from(Span::styled(format!("  \"{}\"", app.ui.pivot_story), Style::default().fg(theme::ACCENT_YELLOW))),
+        Line::from(Span::styled(
+            format!("  \"{}\"", app.ui.pivot_story),
+            Style::default().fg(theme::ACCENT_YELLOW),
+        )),
         Line::from(""),
-        Line::from(Span::styled("  You will lose all progress but gain:", Style::default().fg(theme::FG))),
+        Line::from(Span::styled(
+            "  You will lose all progress but gain:",
+            Style::default().fg(theme::FG),
+        )),
         Line::from(""),
         Line::from(vec![
             Span::styled("    Reputation: ", Style::default().fg(theme::DIM)),
-            Span::styled(format!("+{:.0}", rep), Style::default().fg(theme::ACCENT_GREEN)),
-            Span::styled(format!("  (total: {:.0})", new_total), Style::default().fg(theme::DIM)),
+            Span::styled(
+                format!("+{:.0}", rep),
+                Style::default().fg(theme::ACCENT_GREEN),
+            ),
+            Span::styled(
+                format!("  (total: {:.0})", new_total),
+                Style::default().fg(theme::DIM),
+            ),
         ]),
         Line::from(""),
         Line::from(vec![
@@ -180,12 +254,17 @@ fn render_confirm_pivot_modal(frame: &mut Frame, app: &App) {
     ];
 
     let block = Block::default()
-        .title(Span::styled(" Pivot Consultancy ", Style::default().fg(theme::ACCENT_PURPLE).bold()))
+        .title(Span::styled(
+            " Pivot Consultancy ",
+            Style::default().fg(theme::ACCENT_PURPLE).bold(),
+        ))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme::ACCENT_PURPLE))
         .style(Style::default().bg(theme::BG));
 
-    let paragraph = Paragraph::new(text).block(block).wrap(ratatui::widgets::Wrap { trim: false });
+    let paragraph = Paragraph::new(text)
+        .block(block)
+        .wrap(ratatui::widgets::Wrap { trim: false });
     frame.render_widget(paragraph, area);
 }
 
@@ -195,9 +274,15 @@ fn render_confirm_reset_modal(frame: &mut Frame) {
 
     let text = vec![
         Line::from(""),
-        Line::from(Span::styled("  Are you sure you want to reset?", Style::default().fg(theme::ACCENT_RED).bold())),
+        Line::from(Span::styled(
+            "  Are you sure you want to reset?",
+            Style::default().fg(theme::ACCENT_RED).bold(),
+        )),
         Line::from(""),
-        Line::from(Span::styled("  All progress will be lost.", Style::default().fg(theme::FG))),
+        Line::from(Span::styled(
+            "  All progress will be lost.",
+            Style::default().fg(theme::FG),
+        )),
         Line::from(""),
         Line::from(vec![
             Span::styled("  Enter", Style::default().fg(theme::ACCENT_RED).bold()),
@@ -208,7 +293,10 @@ fn render_confirm_reset_modal(frame: &mut Frame) {
     ];
 
     let block = Block::default()
-        .title(Span::styled(" Reset Game ", Style::default().fg(theme::ACCENT_RED).bold()))
+        .title(Span::styled(
+            " Reset Game ",
+            Style::default().fg(theme::ACCENT_RED).bold(),
+        ))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme::ACCENT_RED))
         .style(Style::default().bg(theme::BG));

@@ -6,7 +6,10 @@ use crate::ui::theme;
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default()
-        .title(Span::styled(" Event Log ", Style::default().fg(theme::ACCENT_YELLOW).bold()))
+        .title(Span::styled(
+            " Event Log ",
+            Style::default().fg(theme::ACCENT_YELLOW).bold(),
+        ))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme::BORDER))
         .style(Style::default().bg(theme::BG));
@@ -15,7 +18,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(block, area);
 
     let max_events = inner.height as usize;
-    let events: Vec<Line> = app.state.event_log.iter()
+    let events: Vec<Line> = app
+        .state
+        .event_log
+        .iter()
         .rev()
         .take(max_events)
         .map(|event| {
@@ -29,6 +35,9 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
                 crate::game::state::EventKind::Income => theme::ACCENT_GREEN,
                 crate::game::state::EventKind::Expense => theme::ACCENT_RED,
                 crate::game::state::EventKind::RandomEvent => theme::ACCENT_YELLOW,
+                crate::game::state::EventKind::PhaseTransition => theme::ACCENT_PURPLE,
+                crate::game::state::EventKind::MegaProjectUpdate => theme::ACCENT_YELLOW,
+                crate::game::state::EventKind::Victory => Color::Rgb(220, 220, 255),
             };
 
             let game_minutes = event.tick / 10 / 60;

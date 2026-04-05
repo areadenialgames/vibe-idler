@@ -6,25 +6,29 @@ pub fn try_purchase(state: &mut GameState, tab: usize, item_idx: usize) {
         0 => buy_hardware(state, item_idx),
         1 => buy_llm(state, item_idx),
         2 => hire_agent(state),
-        3 => {} // Automation - Sprint 6
-        4 => buy_perk(state, item_idx),
+        3 => buy_perk(state, item_idx),
+        4 => hire_robot(state, item_idx),      // Robotics tab
+        5 => hire_space_unit(state, item_idx), // Space tab
         _ => {}
     }
 }
 
 fn buy_hardware(state: &mut GameState, item_idx: usize) {
-    let all = HardwareKind::all();
-    if item_idx >= all.len() {
+    // Only show unlocked hardware
+    let visible: Vec<HardwareKind> = HardwareKind::all()
+        .iter()
+        .filter(|k| state.unlocked_upgrades.contains(&k.unlock_id().to_string()))
+        .copied()
+        .collect();
+
+    if item_idx >= visible.len() {
         return;
     }
-    let kind = all[item_idx];
+    let kind = visible[item_idx];
 
-    // Check unlock
-    if !state.unlocked_upgrades.contains(&kind.unlock_id().to_string()) {
-        return;
-    }
-
-    let owned = state.hardware.iter()
+    let owned = state
+        .hardware
+        .iter()
         .find(|h| h.kind == kind)
         .map(|h| h.count)
         .unwrap_or(0);
@@ -53,7 +57,11 @@ fn buy_hardware(state: &mut GameState, item_idx: usize) {
         state.event_log.push(GameEvent {
             tick: state.total_ticks,
             kind: EventKind::Upgrade,
-            message: format!("Purchased {} for {}", kind.name(), formulas::format_cash(cost)),
+            message: format!(
+                "Purchased {} for {}",
+                kind.name(),
+                formulas::format_cash(cost)
+            ),
         });
     }
 }
@@ -67,7 +75,14 @@ fn unlock_next_hardware(state: &mut GameState, purchased: HardwareKind) {
         HardwareKind::DualGpuRig => Some("hw_server_rack"),
         HardwareKind::ServerRack => Some("hw_gpu_cluster"),
         HardwareKind::GpuCluster => Some("hw_data_center"),
-        HardwareKind::DataCenter => None,
+        HardwareKind::DataCenter => Some("hw_quantum_processor"),
+        HardwareKind::QuantumProcessor => Some("hw_neural_fabric"),
+        HardwareKind::NeuralFabric => Some("hw_nanotech_assembler"),
+        HardwareKind::NanotechAssembler => Some("hw_orbital_compute"),
+        HardwareKind::OrbitalCompute => Some("hw_asteroid_foundry"),
+        HardwareKind::AsteroidFoundry => Some("hw_dyson_collector"),
+        HardwareKind::DysonCollector => Some("hw_computronium_core"),
+        HardwareKind::ComputroniumCore => None,
     };
 
     // Unlock perks based on hardware progression
@@ -77,26 +92,24 @@ fn unlock_next_hardware(state: &mut GameState, purchased: HardwareKind) {
         _ => {}
     }
     if let Some(id) = next {
-        if !state.unlocked_upgrades.contains(&id.to_string()) {
-            state.unlocked_upgrades.push(id.to_string());
-        }
+        add_unlock(state, id);
     }
     // Also unlock basic LLM after buying first hardware
-    if !state.unlocked_upgrades.contains(&"llm_basic".to_string()) {
-        state.unlocked_upgrades.push("llm_basic".to_string());
-    }
+    add_unlock(state, "llm_basic");
 }
 
 fn buy_llm(state: &mut GameState, item_idx: usize) {
-    let all = LlmTier::all();
-    if item_idx >= all.len() {
-        return;
-    }
-    let tier = all[item_idx];
+    // Only show unlocked LLM tiers
+    let visible: Vec<LlmTier> = LlmTier::all()
+        .iter()
+        .filter(|t| state.unlocked_upgrades.contains(&t.unlock_id().to_string()))
+        .copied()
+        .collect();
 
-    if !state.unlocked_upgrades.contains(&tier.unlock_id().to_string()) {
+    if item_idx >= visible.len() {
         return;
     }
+    let tier = visible[item_idx];
 
     if tier == state.active_llm {
         return; // Already active
@@ -107,19 +120,19 @@ fn buy_llm(state: &mut GameState, item_idx: usize) {
         state.cash -= cost;
         state.active_llm = tier;
 
-        // Unlock next tier
+        // Unlock next tier (only for the base chain; endgame tiers unlocked via projects)
         let next = match tier {
             LlmTier::FreeTier => Some("llm_basic"),
             LlmTier::BasicSub => Some("llm_pro"),
             LlmTier::ProSub => Some("llm_team"),
             LlmTier::TeamSub => Some("llm_enterprise"),
             LlmTier::EnterpriseSub => Some("llm_custom"),
-            LlmTier::CustomCluster => None,
+            // Endgame LLM tiers are unlocked by completing specific projects,
+            // not by purchasing the previous tier.
+            _ => None,
         };
         if let Some(id) = next {
-            if !state.unlocked_upgrades.contains(&id.to_string()) {
-                state.unlocked_upgrades.push(id.to_string());
-            }
+            add_unlock(state, id);
         }
 
         state.event_log.push(GameEvent {
@@ -131,11 +144,13 @@ fn buy_llm(state: &mut GameState, item_idx: usize) {
 }
 
 fn hire_agent(state: &mut GameState) {
-    if state.agents.len() as u32 >= state.max_agents + state.prestige_bonuses.extra_agent_slots {
+    let sw_count = state.agent_count_by_class(AgentClass::Software);
+    let max = state.max_for_class(AgentClass::Software);
+    if sw_count >= max {
         return;
     }
 
-    let cost = formulas::agent_hire_cost(state.agents.len() as u32);
+    let cost = formulas::agent_hire_cost(AgentClass::Software, sw_count);
     if state.cash >= cost {
         state.cash -= cost;
         let id = state.agents.len() as u32;
@@ -143,6 +158,7 @@ fn hire_agent(state: &mut GameState) {
             id,
             name: format!("Agent-{}", id + 1),
             specialization: AgentSpec::Generalist,
+            agent_class: AgentClass::Software,
             skill_level: 1.0,
             status: AgentStatus::Idle,
             current_project: None,
@@ -150,28 +166,103 @@ fn hire_agent(state: &mut GameState) {
             bugs_introduced: 0,
         });
 
-        // Unlock more agent slots based on completed projects
-        let completed = state.completed_project_count;
-        if completed >= 2 && state.max_agents < 3 {
-            state.max_agents = 3;
-        }
-        if completed >= 5 && state.max_agents < 5 {
-            state.max_agents = 5;
-        }
-        if completed >= 12 && state.max_agents < 10 {
-            state.max_agents = 10;
-        }
-        if completed >= 20 && state.max_agents < 25 {
-            state.max_agents = 25;
-        }
-        if completed >= 30 && state.max_agents < 100 {
-            state.max_agents = 100;
-        }
+        state.event_log.push(GameEvent {
+            tick: state.total_ticks,
+            kind: EventKind::AgentHired,
+            message: format!(
+                "Spun up Agent-{} for {}",
+                id + 1,
+                formulas::format_cash(cost)
+            ),
+        });
+    }
+}
+
+fn hire_robot(state: &mut GameState, item_idx: usize) {
+    // item_idx 0 = HumanoidWorker, 1 = HumanoidEngineer
+    let (spec, class) = match item_idx {
+        0 => (AgentSpec::HumanoidWorker, AgentClass::Humanoid),
+        1 => (AgentSpec::HumanoidEngineer, AgentClass::Humanoid),
+        _ => return,
+    };
+
+    let count = state.agent_count_by_class(class);
+    let max = state.max_for_class(class);
+    if count >= max {
+        return;
+    }
+
+    let cost = formulas::agent_hire_cost(class, count);
+    if state.cash >= cost {
+        state.cash -= cost;
+        let id = state.agents.len() as u32;
+        let num = count + 1;
+        state.agents.push(Agent {
+            id,
+            name: format!("{}-{}", class.name_prefix(), num),
+            specialization: spec,
+            agent_class: class,
+            skill_level: 1.0,
+            status: AgentStatus::Idle,
+            current_project: None,
+            lines_written: 0,
+            bugs_introduced: 0,
+        });
 
         state.event_log.push(GameEvent {
             tick: state.total_ticks,
             kind: EventKind::AgentHired,
-            message: format!("Spun up Agent-{} for {}", id + 1, formulas::format_cash(cost)),
+            message: format!(
+                "Built {}-{} for {}",
+                class.name_prefix(),
+                num,
+                formulas::format_cash(cost)
+            ),
+        });
+    }
+}
+
+fn hire_space_unit(state: &mut GameState, item_idx: usize) {
+    // item_idx 0 = OrbitalDrone, 1 = DeepSpaceUnit, 2 = ComputroniumEntity
+    let (spec, class) = match item_idx {
+        0 => (AgentSpec::OrbitalDrone, AgentClass::SpaceDrone),
+        1 => (AgentSpec::DeepSpaceUnit, AgentClass::SpaceDrone),
+        2 => (AgentSpec::ComputroniumEntity, AgentClass::Computronium),
+        _ => return,
+    };
+
+    let count = state.agent_count_by_class(class);
+    let max = state.max_for_class(class);
+    if count >= max {
+        return;
+    }
+
+    let cost = formulas::agent_hire_cost(class, count);
+    if state.cash >= cost {
+        state.cash -= cost;
+        let id = state.agents.len() as u32;
+        let num = count + 1;
+        state.agents.push(Agent {
+            id,
+            name: format!("{}-{}", class.name_prefix(), num),
+            specialization: spec,
+            agent_class: class,
+            skill_level: 1.0,
+            status: AgentStatus::Idle,
+            current_project: None,
+            lines_written: 0,
+            bugs_introduced: 0,
+        });
+
+        state.event_log.push(GameEvent {
+            tick: state.total_ticks,
+            kind: EventKind::AgentHired,
+            message: format!(
+                "Deployed {}-{} for {}",
+                class.name_prefix(),
+                num,
+                formulas::format_cash(cost)
+            ),
         });
     }
 }
@@ -184,7 +275,10 @@ fn buy_perk(state: &mut GameState, item_idx: usize) {
     let perk = all[item_idx];
 
     // Must be visible (unlocked) and not already owned
-    if !state.unlocked_upgrades.contains(&perk.unlock_id().to_string()) {
+    if !state
+        .unlocked_upgrades
+        .contains(&perk.unlock_id().to_string())
+    {
         return;
     }
     if state.unlocked_upgrades.contains(&perk.owned_id()) {
@@ -199,7 +293,11 @@ fn buy_perk(state: &mut GameState, item_idx: usize) {
         state.event_log.push(GameEvent {
             tick: state.total_ticks,
             kind: EventKind::Upgrade,
-            message: format!("Installed {} for {}", perk.name(), formulas::format_cash(cost)),
+            message: format!(
+                "Installed {} for {}",
+                perk.name(),
+                formulas::format_cash(cost)
+            ),
         });
     }
 }

@@ -11,7 +11,10 @@ pub fn render(frame: &mut Frame, app: &App) {
     frame.render_widget(Clear, area);
 
     let block = Block::default()
-        .title(Span::styled(" Projects ", Style::default().fg(theme::ACCENT_YELLOW).bold()))
+        .title(Span::styled(
+            " Projects ",
+            Style::default().fg(theme::ACCENT_YELLOW).bold(),
+        ))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme::ACCENT_YELLOW))
         .style(Style::default().bg(theme::BG));
@@ -42,10 +45,14 @@ pub fn render(frame: &mut Frame, app: &App) {
 
             let payment_str = match &proj.payment {
                 ProjectPayment::OneTime(a) => formulas::format_cash(*a),
-                ProjectPayment::Recurring { monthly } => format!("{}/mo", formulas::format_cash(*monthly)),
+                ProjectPayment::Recurring { monthly } => {
+                    format!("{}/mo", formulas::format_cash(*monthly))
+                }
             };
 
-            let assigned: Vec<String> = proj.assigned_agents.iter()
+            let assigned: Vec<String> = proj
+                .assigned_agents
+                .iter()
                 .filter_map(|id| app.state.agents.iter().find(|a| a.id == *id))
                 .map(|a| a.name.clone())
                 .collect();
@@ -54,13 +61,19 @@ pub fn render(frame: &mut Frame, app: &App) {
             let name: String = proj.name.chars().take(name_width).collect();
             lines.push(Line::from(vec![
                 Span::styled(format!("  {}", name), Style::default().fg(theme::FG)),
-                Span::styled(format!("  {}", payment_str), Style::default().fg(theme::ACCENT_YELLOW)),
+                Span::styled(
+                    format!("  {}", payment_str),
+                    Style::default().fg(theme::ACCENT_YELLOW),
+                ),
             ]));
             lines.push(Line::from(vec![
                 Span::styled("  ", Style::default()),
                 Span::styled("█".repeat(filled), Style::default().fg(theme::ACCENT_GREEN)),
                 Span::styled("░".repeat(empty), Style::default().fg(theme::DIM)),
-                Span::styled(format!(" {:>3}%", pct), Style::default().fg(theme::ACCENT_GREEN)),
+                Span::styled(
+                    format!(" {:>3}%", pct),
+                    Style::default().fg(theme::ACCENT_GREEN),
+                ),
             ]));
             if !assigned.is_empty() {
                 lines.push(Line::from(Span::styled(
@@ -75,7 +88,10 @@ pub fn render(frame: &mut Frame, app: &App) {
     // Completed stats
     lines.push(Line::from(""));
     lines.push(Line::from(vec![
-        Span::styled(" Completed: ", Style::default().fg(theme::ACCENT_CYAN).bold()),
+        Span::styled(
+            " Completed: ",
+            Style::default().fg(theme::ACCENT_CYAN).bold(),
+        ),
         Span::styled(
             format!("{}", app.state.completed_project_count),
             Style::default().fg(theme::ACCENT_GREEN),
@@ -92,7 +108,10 @@ pub fn render(frame: &mut Frame, app: &App) {
         lines.push(Line::from(""));
         for src in &app.state.passive_income_sources {
             lines.push(Line::from(vec![
-                Span::styled(format!("  {}", src.source_name), Style::default().fg(theme::FG)),
+                Span::styled(
+                    format!("  {}", src.source_name),
+                    Style::default().fg(theme::FG),
+                ),
                 Span::styled(
                     format!("  {}/mo", formulas::format_cash(src.monthly_income)),
                     Style::default().fg(theme::ACCENT_GREEN),

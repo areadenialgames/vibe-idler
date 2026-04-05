@@ -1,6 +1,7 @@
 # Vibe Idler
 
 A terminal-based idle game where you run a vibe coding consultancy. Spin up AI agents, buy hardware, unlock better LLMs, and watch your empire of autonomously-generated software grow.
+**WARNING** end game spoilers can be found if you browse the source code. for maximum fun, just run it from the compiled binaries!
 
 Built with Rust and [Ratatui](https://github.com/ratatui/ratatui).
 

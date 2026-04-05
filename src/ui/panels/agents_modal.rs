@@ -10,7 +10,10 @@ pub fn render(frame: &mut Frame, app: &App) {
     frame.render_widget(Clear, area);
 
     let block = Block::default()
-        .title(Span::styled(" Agents ", Style::default().fg(theme::ACCENT_CYAN).bold()))
+        .title(Span::styled(
+            " Agents ",
+            Style::default().fg(theme::ACCENT_CYAN).bold(),
+        ))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme::ACCENT_CYAN))
         .style(Style::default().bg(theme::BG));
@@ -20,12 +23,10 @@ pub fn render(frame: &mut Frame, app: &App) {
 
     let max = app.state.max_agents + app.state.prestige_bonuses.extra_agent_slots;
     let mut lines: Vec<Line> = vec![
-        Line::from(vec![
-            Span::styled(
-                format!(" Agents: {} / {}", app.state.agents.len(), max),
-                Style::default().fg(theme::ACCENT_CYAN).bold(),
-            ),
-        ]),
+        Line::from(vec![Span::styled(
+            format!(" Agents: {} / {}", app.state.agents.len(), max),
+            Style::default().fg(theme::ACCENT_CYAN).bold(),
+        )]),
         Line::from(""),
     ];
 
@@ -39,15 +40,22 @@ pub fn render(frame: &mut Frame, app: &App) {
         };
 
         lines.push(Line::from(vec![
-            Span::styled(format!("  {}", agent.name), Style::default().fg(theme::ACCENT_CYAN).bold()),
-            Span::styled(format!("  [{}]", agent.specialization.name()), Style::default().fg(spec_color)),
+            Span::styled(
+                format!("  {}", agent.name),
+                Style::default().fg(theme::ACCENT_CYAN).bold(),
+            ),
+            Span::styled(
+                format!("  [{}]", agent.specialization.name()),
+                Style::default().fg(spec_color),
+            ),
         ]));
 
         // Status
         let (status_text, status_color) = match &agent.status {
             AgentStatus::Idle => ("Idle".to_string(), theme::DIM),
             AgentStatus::Working => {
-                let proj_name = agent.current_project
+                let proj_name = agent
+                    .current_project
                     .and_then(|i| app.state.active_projects.get(i))
                     .map(|p| p.name.clone())
                     .unwrap_or_else(|| "...".into());
@@ -66,13 +74,19 @@ pub fn render(frame: &mut Frame, app: &App) {
         let filled = (bar_len as f64 * skill_pct) as usize;
         let empty = bar_len - filled;
         lines.push(Line::from(vec![
-            Span::styled(format!("    Skill: {:.2} ", agent.skill_level), Style::default().fg(theme::DIM)),
+            Span::styled(
+                format!("    Skill: {:.2} ", agent.skill_level),
+                Style::default().fg(theme::DIM),
+            ),
             Span::styled("█".repeat(filled), Style::default().fg(theme::ACCENT_CYAN)),
             Span::styled("░".repeat(empty), Style::default().fg(theme::DIM)),
         ]));
 
         lines.push(Line::from(Span::styled(
-            format!("    Lines: {}  Bugs: {}", agent.lines_written, agent.bugs_introduced),
+            format!(
+                "    Lines: {}  Bugs: {}",
+                agent.lines_written, agent.bugs_introduced
+            ),
             Style::default().fg(theme::DIM),
         )));
         lines.push(Line::from(""));

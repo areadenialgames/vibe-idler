@@ -13,8 +13,7 @@ fn save_path() -> PathBuf {
 
 pub fn save_game(state: &GameState) -> io::Result<()> {
     let path = save_path();
-    let json = serde_json::to_string(state)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    let json = serde_json::to_string(state).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
     let tmp_path = path.with_extension("json.tmp");
     std::fs::write(&tmp_path, &json)?;
     std::fs::rename(&tmp_path, &path)?;
@@ -35,7 +34,7 @@ pub fn load_game() -> io::Result<Option<GameState>> {
         return Ok(None);
     }
     let json = std::fs::read_to_string(&path)?;
-    let state: GameState = serde_json::from_str(&json)
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    let state: GameState =
+        serde_json::from_str(&json).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
     Ok(Some(state))
 }

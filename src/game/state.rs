@@ -1,5 +1,52 @@
 use serde::{Deserialize, Serialize};
 
+// ---------------------------------------------------------------------------
+// Game Phase
+// ---------------------------------------------------------------------------
+
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub enum GamePhase {
+    #[default]
+    Consultancy,
+    Industry,
+    PostHuman,
+    SpaceAge,
+    Kardashev,
+    Victory,
+}
+
+impl GamePhase {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Consultancy => "VIBE IDLER",
+            Self::Industry => "VIBE INDUSTRIES",
+            Self::PostHuman => "NEXUS CORP",
+            Self::SpaceAge => "NEXUS ORBITAL",
+            Self::Kardashev => "DYSON PROJECT",
+            Self::Victory => "TRANSCENDENCE",
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Mega-Projects (Dyson Sphere + Computronium)
+// ---------------------------------------------------------------------------
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct MegaProjects {
+    pub dyson_segments_completed: u32,
+    pub dyson_sphere_progress: f64,
+    pub dyson_sphere_complete: bool,
+    pub planets_converted: u32,
+    pub solar_conversion_progress: f64,
+    pub solar_conversion_complete: bool,
+    pub victory_achieved: bool,
+}
+
+// ---------------------------------------------------------------------------
+// Core Game State
+// ---------------------------------------------------------------------------
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct GameState {
     pub cash: f64,
@@ -41,6 +88,20 @@ pub struct GameState {
     pub radio_enabled: bool,
     #[serde(default)]
     pub radio_station: usize,
+
+    // --- Endgame fields (all with serde defaults for save compat) ---
+    #[serde(default)]
+    pub phase: GamePhase,
+    #[serde(default)]
+    pub mega_projects: MegaProjects,
+    #[serde(default)]
+    pub max_humanoids: u32,
+    #[serde(default)]
+    pub max_space_drones: u32,
+    #[serde(default)]
+    pub max_computronium_units: u32,
+    #[serde(default)]
+    pub ascension_count: u32,
 }
 
 fn default_true() -> bool {
@@ -81,6 +142,12 @@ impl GameState {
             audio_enabled: true,
             radio_enabled: true,
             radio_station: 0,
+            phase: GamePhase::Consultancy,
+            mega_projects: MegaProjects::default(),
+            max_humanoids: 0,
+            max_space_drones: 0,
+            max_computronium_units: 0,
+            ascension_count: 0,
         };
 
         // Start with one generalist agent
@@ -88,6 +155,7 @@ impl GameState {
             id: 0,
             name: "Agent-1".into(),
             specialization: AgentSpec::Generalist,
+            agent_class: AgentClass::Software,
             skill_level: 1.0,
             status: AgentStatus::Idle,
             current_project: None,
@@ -98,32 +166,95 @@ impl GameState {
         state.event_log.push(GameEvent {
             tick: 0,
             kind: EventKind::RandomEvent,
-            message: "Welcome to Vibe Idler! Open the [S]hop to buy hardware and get started.".into(),
+            message: "Welcome to Vibe Idler! Open the [S]hop to buy hardware and get started."
+                .into(),
         });
 
         state
     }
 
     pub fn recalculate_compute(&mut self) {
-        self.total_compute = self.hardware.iter().map(|h| h.kind.compute() * h.count as f64).sum();
+        self.total_compute = self
+            .hardware
+            .iter()
+            .map(|h| h.kind.compute() * h.count as f64)
+            .sum();
+    }
+
+    pub fn recalculate_phase(&mut self) {
+        let c = self.completed_project_count;
+        self.phase = if self.mega_projects.victory_achieved {
+            GamePhase::Victory
+        } else if c >= 150 {
+            GamePhase::Kardashev
+        } else if c >= 100 {
+            GamePhase::SpaceAge
+        } else if c >= 65 {
+            GamePhase::PostHuman
+        } else if c >= 35 {
+            GamePhase::Industry
+        } else {
+            GamePhase::Consultancy
+        };
     }
 
     pub fn income_per_tick(&self) -> f64 {
-        let monthly: f64 = self.passive_income_sources.iter().map(|p| p.monthly_income).sum();
+        let monthly: f64 = self
+            .passive_income_sources
+            .iter()
+            .map(|p| p.monthly_income)
+            .sum();
         monthly / TICKS_PER_GAME_MONTH as f64
     }
 
     pub fn expense_per_month(&self) -> f64 {
         let llm = self.active_llm.monthly_cost();
-        let agents = self.agents.len() as f64 * 10.0;
-        let hw_maintenance: f64 = self.hardware.iter()
+        let agent_cost = self
+            .agents
+            .iter()
+            .map(|a| a.agent_class.monthly_upkeep())
+            .sum::<f64>();
+        let hw_maintenance: f64 = self
+            .hardware
+            .iter()
             .map(|h| h.kind.base_cost() * 0.02 * h.count as f64)
             .sum();
-        llm + agents + hw_maintenance
+        llm + agent_cost + hw_maintenance
+    }
+
+    pub fn visible_tab_count(&self) -> usize {
+        let mut count = 4; // Hardware, LLM, Agents, Perks
+        if self.phase >= GamePhase::PostHuman {
+            count += 1; // Robotics
+        }
+        if self.phase >= GamePhase::SpaceAge {
+            count += 1; // Space
+        }
+        count
+    }
+
+    pub fn agent_count_by_class(&self, class: AgentClass) -> u32 {
+        self.agents
+            .iter()
+            .filter(|a| a.agent_class == class)
+            .count() as u32
+    }
+
+    pub fn max_for_class(&self, class: AgentClass) -> u32 {
+        match class {
+            AgentClass::Software => self.max_agents + self.prestige_bonuses.extra_agent_slots,
+            AgentClass::Humanoid => self.max_humanoids,
+            AgentClass::SpaceDrone => self.max_space_drones,
+            AgentClass::Computronium => self.max_computronium_units,
+        }
     }
 }
 
 pub const TICKS_PER_GAME_MONTH: u64 = 3000;
+
+// ---------------------------------------------------------------------------
+// Hardware
+// ---------------------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct OwnedHardware {
@@ -141,6 +272,14 @@ pub enum HardwareKind {
     ServerRack,
     GpuCluster,
     DataCenter,
+    // Endgame tiers
+    QuantumProcessor,
+    NeuralFabric,
+    NanotechAssembler,
+    OrbitalCompute,
+    AsteroidFoundry,
+    DysonCollector,
+    ComputroniumCore,
 }
 
 impl HardwareKind {
@@ -154,6 +293,13 @@ impl HardwareKind {
             Self::ServerRack => "Server Rack",
             Self::GpuCluster => "GPU Cluster",
             Self::DataCenter => "Data Center",
+            Self::QuantumProcessor => "Quantum Processor",
+            Self::NeuralFabric => "Neural Fabric",
+            Self::NanotechAssembler => "Nanotech Assembler",
+            Self::OrbitalCompute => "Orbital Compute",
+            Self::AsteroidFoundry => "Asteroid Foundry",
+            Self::DysonCollector => "Dyson Collector",
+            Self::ComputroniumCore => "Computronium Core",
         }
     }
 
@@ -161,12 +307,19 @@ impl HardwareKind {
         match self {
             Self::UsedLaptop => 200.0,
             Self::RefurbishedDesktop => 500.0,
-            Self::GamingPC => 1500.0,
-            Self::Workstation => 5000.0,
-            Self::DualGpuRig => 15000.0,
-            Self::ServerRack => 50000.0,
-            Self::GpuCluster => 200000.0,
-            Self::DataCenter => 1000000.0,
+            Self::GamingPC => 1_500.0,
+            Self::Workstation => 5_000.0,
+            Self::DualGpuRig => 15_000.0,
+            Self::ServerRack => 50_000.0,
+            Self::GpuCluster => 200_000.0,
+            Self::DataCenter => 1_000_000.0,
+            Self::QuantumProcessor => 10_000_000.0,
+            Self::NeuralFabric => 100_000_000.0,
+            Self::NanotechAssembler => 1_000_000_000.0,
+            Self::OrbitalCompute => 50_000_000_000.0,
+            Self::AsteroidFoundry => 1_000_000_000_000.0,
+            Self::DysonCollector => 100_000_000_000_000.0,
+            Self::ComputroniumCore => 10_000_000_000_000_000.0,
         }
     }
 
@@ -180,6 +333,13 @@ impl HardwareKind {
             Self::ServerRack => 1.28,
             Self::GpuCluster => 1.30,
             Self::DataCenter => 1.35,
+            Self::QuantumProcessor => 1.38,
+            Self::NeuralFabric => 1.40,
+            Self::NanotechAssembler => 1.42,
+            Self::OrbitalCompute => 1.45,
+            Self::AsteroidFoundry => 1.48,
+            Self::DysonCollector => 1.50,
+            Self::ComputroniumCore => 1.55,
         }
     }
 
@@ -191,8 +351,15 @@ impl HardwareKind {
             Self::Workstation => 30.0,
             Self::DualGpuRig => 80.0,
             Self::ServerRack => 250.0,
-            Self::GpuCluster => 1000.0,
-            Self::DataCenter => 5000.0,
+            Self::GpuCluster => 1_000.0,
+            Self::DataCenter => 5_000.0,
+            Self::QuantumProcessor => 25_000.0,
+            Self::NeuralFabric => 150_000.0,
+            Self::NanotechAssembler => 1_000_000.0,
+            Self::OrbitalCompute => 10_000_000.0,
+            Self::AsteroidFoundry => 100_000_000.0,
+            Self::DysonCollector => 1_000_000_000.0,
+            Self::ComputroniumCore => 50_000_000_000.0,
         }
     }
 
@@ -206,6 +373,13 @@ impl HardwareKind {
             Self::ServerRack => "hw_server_rack",
             Self::GpuCluster => "hw_gpu_cluster",
             Self::DataCenter => "hw_data_center",
+            Self::QuantumProcessor => "hw_quantum_processor",
+            Self::NeuralFabric => "hw_neural_fabric",
+            Self::NanotechAssembler => "hw_nanotech_assembler",
+            Self::OrbitalCompute => "hw_orbital_compute",
+            Self::AsteroidFoundry => "hw_asteroid_foundry",
+            Self::DysonCollector => "hw_dyson_collector",
+            Self::ComputroniumCore => "hw_computronium_core",
         }
     }
 
@@ -219,9 +393,20 @@ impl HardwareKind {
             Self::ServerRack,
             Self::GpuCluster,
             Self::DataCenter,
+            Self::QuantumProcessor,
+            Self::NeuralFabric,
+            Self::NanotechAssembler,
+            Self::OrbitalCompute,
+            Self::AsteroidFoundry,
+            Self::DysonCollector,
+            Self::ComputroniumCore,
         ]
     }
 }
+
+// ---------------------------------------------------------------------------
+// LLM Tiers
+// ---------------------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Copy)]
 pub enum LlmTier {
@@ -231,6 +416,12 @@ pub enum LlmTier {
     TeamSub,
     EnterpriseSub,
     CustomCluster,
+    // Endgame tiers
+    AgiPrototype,
+    Superintelligence,
+    HiveMind,
+    PlanetaryOvermind,
+    MatrioshkaBrain,
 }
 
 impl LlmTier {
@@ -242,6 +433,11 @@ impl LlmTier {
             Self::TeamSub => "Team",
             Self::EnterpriseSub => "Enterprise",
             Self::CustomCluster => "Custom Cluster",
+            Self::AgiPrototype => "AGI Prototype",
+            Self::Superintelligence => "Superintelligence",
+            Self::HiveMind => "Hive Mind",
+            Self::PlanetaryOvermind => "Planetary Overmind",
+            Self::MatrioshkaBrain => "Matrioshka Brain",
         }
     }
 
@@ -253,6 +449,11 @@ impl LlmTier {
             Self::TeamSub => 2.5,
             Self::EnterpriseSub => 4.0,
             Self::CustomCluster => 6.0,
+            Self::AgiPrototype => 12.0,
+            Self::Superintelligence => 25.0,
+            Self::HiveMind => 60.0,
+            Self::PlanetaryOvermind => 200.0,
+            Self::MatrioshkaBrain => 1000.0,
         }
     }
 
@@ -262,8 +463,13 @@ impl LlmTier {
             Self::BasicSub => 20.0,
             Self::ProSub => 50.0,
             Self::TeamSub => 200.0,
-            Self::EnterpriseSub => 1000.0,
-            Self::CustomCluster => 5000.0,
+            Self::EnterpriseSub => 1_000.0,
+            Self::CustomCluster => 5_000.0,
+            Self::AgiPrototype => 50_000.0,
+            Self::Superintelligence => 500_000.0,
+            Self::HiveMind => 10_000_000.0,
+            Self::PlanetaryOvermind => 1_000_000_000.0,
+            Self::MatrioshkaBrain => 0.0, // powered by the Dyson Sphere
         }
     }
 
@@ -272,9 +478,14 @@ impl LlmTier {
             Self::FreeTier => 0.0,
             Self::BasicSub => 50.0,
             Self::ProSub => 200.0,
-            Self::TeamSub => 1000.0,
-            Self::EnterpriseSub => 5000.0,
-            Self::CustomCluster => 50000.0,
+            Self::TeamSub => 1_000.0,
+            Self::EnterpriseSub => 5_000.0,
+            Self::CustomCluster => 50_000.0,
+            Self::AgiPrototype => 500_000.0,
+            Self::Superintelligence => 5_000_000.0,
+            Self::HiveMind => 100_000_000.0,
+            Self::PlanetaryOvermind => 10_000_000_000.0,
+            Self::MatrioshkaBrain => 1_000_000_000_000.0,
         }
     }
 
@@ -286,6 +497,11 @@ impl LlmTier {
             Self::TeamSub => "llm_team",
             Self::EnterpriseSub => "llm_enterprise",
             Self::CustomCluster => "llm_custom",
+            Self::AgiPrototype => "llm_agi",
+            Self::Superintelligence => "llm_asi",
+            Self::HiveMind => "llm_hive_mind",
+            Self::PlanetaryOvermind => "llm_overmind",
+            Self::MatrioshkaBrain => "llm_matrioshka",
         }
     }
 
@@ -297,15 +513,79 @@ impl LlmTier {
             Self::TeamSub,
             Self::EnterpriseSub,
             Self::CustomCluster,
+            Self::AgiPrototype,
+            Self::Superintelligence,
+            Self::HiveMind,
+            Self::PlanetaryOvermind,
+            Self::MatrioshkaBrain,
         ]
     }
 }
+
+// ---------------------------------------------------------------------------
+// Agent Class (Software, Humanoid, SpaceDrone, Computronium)
+// ---------------------------------------------------------------------------
+
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AgentClass {
+    #[default]
+    Software,
+    Humanoid,
+    SpaceDrone,
+    Computronium,
+}
+
+#[allow(dead_code)]
+impl AgentClass {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Software => "Software",
+            Self::Humanoid => "Humanoid",
+            Self::SpaceDrone => "Space Drone",
+            Self::Computronium => "Computronium",
+        }
+    }
+
+    pub fn hire_cost(&self, owned: u32) -> f64 {
+        match self {
+            Self::Software => 100.0 * 1.5_f64.powi(owned as i32),
+            Self::Humanoid => 1_000_000.0 * 1.4_f64.powi(owned as i32),
+            Self::SpaceDrone => 100_000_000.0 * 1.3_f64.powi(owned as i32),
+            Self::Computronium => 10_000_000_000.0 * 1.2_f64.powi(owned as i32),
+        }
+    }
+
+    pub fn monthly_upkeep(&self) -> f64 {
+        match self {
+            Self::Software => 10.0,
+            Self::Humanoid => 10_000.0,
+            Self::SpaceDrone => 1_000_000.0,
+            Self::Computronium => 100_000_000.0,
+        }
+    }
+
+    pub fn name_prefix(&self) -> &'static str {
+        match self {
+            Self::Software => "Agent",
+            Self::Humanoid => "Robot",
+            Self::SpaceDrone => "Drone",
+            Self::Computronium => "Entity",
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Agents
+// ---------------------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Agent {
     pub id: u32,
     pub name: String,
     pub specialization: AgentSpec,
+    #[serde(default)]
+    pub agent_class: AgentClass,
     pub skill_level: f64,
     pub status: AgentStatus,
     pub current_project: Option<usize>,
@@ -323,8 +603,17 @@ pub enum AgentSpec {
     DataScience,
     Security,
     Architect,
+    // Endgame specializations
+    Researcher,
+    BioEngineer,
+    HumanoidWorker,
+    HumanoidEngineer,
+    OrbitalDrone,
+    DeepSpaceUnit,
+    ComputroniumEntity,
 }
 
+#[allow(dead_code)]
 impl AgentSpec {
     pub fn name(&self) -> &'static str {
         match self {
@@ -336,6 +625,67 @@ impl AgentSpec {
             Self::DataScience => "Data Sci",
             Self::Security => "Security",
             Self::Architect => "Architect",
+            Self::Researcher => "Researcher",
+            Self::BioEngineer => "BioEngineer",
+            Self::HumanoidWorker => "Humanoid",
+            Self::HumanoidEngineer => "Humanoid Eng",
+            Self::OrbitalDrone => "Orbital Drone",
+            Self::DeepSpaceUnit => "Deep Space",
+            Self::ComputroniumEntity => "Computronium",
+        }
+    }
+
+    pub fn default_class(&self) -> AgentClass {
+        match self {
+            Self::HumanoidWorker | Self::HumanoidEngineer => AgentClass::Humanoid,
+            Self::OrbitalDrone | Self::DeepSpaceUnit => AgentClass::SpaceDrone,
+            Self::ComputroniumEntity => AgentClass::Computronium,
+            _ => AgentClass::Software,
+        }
+    }
+
+    /// Returns the work speed bonus this spec gets on the given project kind.
+    pub fn spec_bonus(&self, kind: &ProjectKind) -> f64 {
+        match self {
+            Self::Architect => 1.25,
+            Self::Researcher => match kind {
+                ProjectKind::AgiResearch
+                | ProjectKind::QuantumCompiler
+                | ProjectKind::ScientificSim
+                | ProjectKind::ConsciousnessUpload => 2.0,
+                _ => 1.0,
+            },
+            Self::BioEngineer => match kind {
+                ProjectKind::HealthcarePortal | ProjectKind::NanotechPrototype => 2.0,
+                _ => 1.0,
+            },
+            Self::HumanoidWorker => match kind {
+                ProjectKind::HumanoidChassis | ProjectKind::RoboticsFactory => 1.5,
+                _ => 1.0,
+            },
+            Self::HumanoidEngineer => match kind {
+                ProjectKind::LaunchVehicle
+                | ProjectKind::OrbitalStation
+                | ProjectKind::HumanoidChassis
+                | ProjectKind::RoboticsFactory => 2.5,
+                _ => 1.0,
+            },
+            Self::OrbitalDrone => match kind {
+                ProjectKind::OrbitalStation
+                | ProjectKind::DeepSpaceProbe
+                | ProjectKind::AsteroidMining
+                | ProjectKind::DysonSwarmSegment => 3.0,
+                _ => 1.0,
+            },
+            Self::DeepSpaceUnit => match kind {
+                ProjectKind::MarsColony
+                | ProjectKind::InterplanetaryNet
+                | ProjectKind::DysonSwarmSegment
+                | ProjectKind::ComputroniumSlab => 4.0,
+                _ => 1.0,
+            },
+            Self::ComputroniumEntity => 10.0, // bonus on everything
+            _ => 1.0,
         }
     }
 }
@@ -358,6 +708,10 @@ impl AgentStatus {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Projects
+// ---------------------------------------------------------------------------
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Project {
     pub name: String,
@@ -373,6 +727,7 @@ pub struct Project {
 
 #[derive(Serialize, Deserialize, Clone, Copy, PartialEq)]
 pub enum ProjectKind {
+    // Phase 0: Consultancy
     LandingPage,
     PersonalWebsite,
     SimpleScript,
@@ -387,6 +742,30 @@ pub enum ProjectKind {
     OpenSourceFramework,
     CryptoProtocol,
     GameDev,
+    // Phase 1: Industry Expansion
+    HealthcarePortal,
+    LegalDiscovery,
+    FinancialEngine,
+    GovContract,
+    ScientificSim,
+    AutonomousFleet,
+    // Phase 2: Post-Human
+    AgiResearch,
+    QuantumCompiler,
+    NanotechPrototype,
+    HumanoidChassis,
+    RoboticsFactory,
+    ConsciousnessUpload,
+    // Phase 3: Space Program
+    LaunchVehicle,
+    OrbitalStation,
+    DeepSpaceProbe,
+    AsteroidMining,
+    MarsColony,
+    InterplanetaryNet,
+    // Phase 4: Megastructures
+    DysonSwarmSegment,
+    ComputroniumSlab,
 }
 
 #[allow(dead_code)]
@@ -407,6 +786,30 @@ impl ProjectKind {
             Self::OpenSourceFramework => "Open Source",
             Self::CryptoProtocol => "Crypto Protocol",
             Self::GameDev => "Game Dev",
+            // Phase 1
+            Self::HealthcarePortal => "Healthcare Portal",
+            Self::LegalDiscovery => "Legal Discovery AI",
+            Self::FinancialEngine => "Financial Engine",
+            Self::GovContract => "Gov Contract",
+            Self::ScientificSim => "Scientific Sim",
+            Self::AutonomousFleet => "Autonomous Fleet",
+            // Phase 2
+            Self::AgiResearch => "AGI Research",
+            Self::QuantumCompiler => "Quantum Compiler",
+            Self::NanotechPrototype => "Nanotech Prototype",
+            Self::HumanoidChassis => "Humanoid Chassis",
+            Self::RoboticsFactory => "Robotics Factory",
+            Self::ConsciousnessUpload => "Consciousness Upload",
+            // Phase 3
+            Self::LaunchVehicle => "Launch Vehicle",
+            Self::OrbitalStation => "Orbital Station",
+            Self::DeepSpaceProbe => "Deep Space Probe",
+            Self::AsteroidMining => "Asteroid Mining",
+            Self::MarsColony => "Mars Colony",
+            Self::InterplanetaryNet => "Interplanetary Net",
+            // Phase 4
+            Self::DysonSwarmSegment => "Dyson Segment",
+            Self::ComputroniumSlab => "Computronium Slab",
         }
     }
 
@@ -419,13 +822,37 @@ impl ProjectKind {
             Self::RestApi => 150.0,
             Self::MobileApp => 400.0,
             Self::EcommerceSite => 600.0,
-            Self::SaasProduct => 1000.0,
+            Self::SaasProduct => 1_000.0,
             Self::DataPipeline => 500.0,
             Self::MlModel => 800.0,
-            Self::EnterpriseSoftware => 3000.0,
-            Self::OpenSourceFramework => 2000.0,
-            Self::CryptoProtocol => 1500.0,
-            Self::GameDev => 2500.0,
+            Self::EnterpriseSoftware => 3_000.0,
+            Self::OpenSourceFramework => 2_000.0,
+            Self::CryptoProtocol => 1_500.0,
+            Self::GameDev => 2_500.0,
+            // Phase 1
+            Self::HealthcarePortal => 5_000.0,
+            Self::LegalDiscovery => 6_000.0,
+            Self::FinancialEngine => 8_000.0,
+            Self::GovContract => 12_000.0,
+            Self::ScientificSim => 10_000.0,
+            Self::AutonomousFleet => 15_000.0,
+            // Phase 2
+            Self::AgiResearch => 50_000.0,
+            Self::QuantumCompiler => 60_000.0,
+            Self::NanotechPrototype => 80_000.0,
+            Self::HumanoidChassis => 100_000.0,
+            Self::RoboticsFactory => 150_000.0,
+            Self::ConsciousnessUpload => 200_000.0,
+            // Phase 3
+            Self::LaunchVehicle => 300_000.0,
+            Self::OrbitalStation => 500_000.0,
+            Self::DeepSpaceProbe => 600_000.0,
+            Self::AsteroidMining => 800_000.0,
+            Self::MarsColony => 1_500_000.0,
+            Self::InterplanetaryNet => 1_000_000.0,
+            // Phase 4
+            Self::DysonSwarmSegment => 5_000_000.0,
+            Self::ComputroniumSlab => 8_000_000.0,
         }
     }
 
@@ -436,20 +863,130 @@ impl ProjectKind {
             Self::SimpleScript => 50.0,
             Self::CrudApp => 500.0,
             Self::RestApi => 400.0,
-            Self::MobileApp => 1200.0,
-            Self::EcommerceSite => 2000.0,
-            Self::SaasProduct => 3000.0,
-            Self::DataPipeline => 1500.0,
-            Self::MlModel => 2500.0,
-            Self::EnterpriseSoftware => 15000.0,
+            Self::MobileApp => 1_200.0,
+            Self::EcommerceSite => 2_000.0,
+            Self::SaasProduct => 3_000.0,
+            Self::DataPipeline => 1_500.0,
+            Self::MlModel => 2_500.0,
+            Self::EnterpriseSoftware => 15_000.0,
             Self::OpenSourceFramework => 500.0,
-            Self::CryptoProtocol => 5000.0,
-            Self::GameDev => 4000.0,
+            Self::CryptoProtocol => 5_000.0,
+            Self::GameDev => 4_000.0,
+            // Phase 1
+            Self::HealthcarePortal => 25_000.0,
+            Self::LegalDiscovery => 35_000.0,
+            Self::FinancialEngine => 50_000.0,
+            Self::GovContract => 100_000.0,
+            Self::ScientificSim => 75_000.0,
+            Self::AutonomousFleet => 200_000.0,
+            // Phase 2
+            Self::AgiResearch => 1_000_000.0,
+            Self::QuantumCompiler => 2_000_000.0,
+            Self::NanotechPrototype => 5_000_000.0,
+            Self::HumanoidChassis => 10_000_000.0,
+            Self::RoboticsFactory => 25_000_000.0,
+            Self::ConsciousnessUpload => 50_000_000.0,
+            // Phase 3
+            Self::LaunchVehicle => 100_000_000.0,
+            Self::OrbitalStation => 500_000_000.0,
+            Self::DeepSpaceProbe => 1_000_000_000.0,
+            Self::AsteroidMining => 2_000_000_000.0,
+            Self::MarsColony => 10_000_000_000.0,
+            Self::InterplanetaryNet => 5_000_000_000.0,
+            // Phase 4
+            Self::DysonSwarmSegment => 100_000_000_000.0,
+            Self::ComputroniumSlab => 500_000_000_000.0,
         }
     }
 
     pub fn is_recurring(&self) -> bool {
-        matches!(self, Self::SaasProduct | Self::OpenSourceFramework)
+        matches!(
+            self,
+            Self::SaasProduct
+                | Self::OpenSourceFramework
+                | Self::RoboticsFactory
+                | Self::OrbitalStation
+                | Self::AsteroidMining
+                | Self::MarsColony
+                | Self::InterplanetaryNet
+        )
+    }
+
+    pub fn unlock_id(&self) -> &'static str {
+        match self {
+            Self::LandingPage => "proj_landing",
+            Self::PersonalWebsite => "proj_personal_site",
+            Self::SimpleScript => "proj_simple_script",
+            Self::CrudApp => "proj_crud_app",
+            Self::RestApi => "proj_rest_api",
+            Self::MobileApp => "proj_mobile_app",
+            Self::EcommerceSite => "proj_ecommerce",
+            Self::SaasProduct => "proj_saas",
+            Self::DataPipeline => "proj_data_pipeline",
+            Self::MlModel => "proj_ml_model",
+            Self::EnterpriseSoftware => "proj_enterprise",
+            Self::OpenSourceFramework => "proj_open_source",
+            Self::CryptoProtocol => "proj_crypto",
+            Self::GameDev => "proj_gamedev",
+            Self::HealthcarePortal => "proj_healthcare",
+            Self::LegalDiscovery => "proj_legal",
+            Self::FinancialEngine => "proj_financial",
+            Self::GovContract => "proj_gov_contract",
+            Self::ScientificSim => "proj_scientific",
+            Self::AutonomousFleet => "proj_autonomous",
+            Self::AgiResearch => "proj_agi_research",
+            Self::QuantumCompiler => "proj_quantum_compiler",
+            Self::NanotechPrototype => "proj_nanotech",
+            Self::HumanoidChassis => "proj_humanoid",
+            Self::RoboticsFactory => "proj_robotics_factory",
+            Self::ConsciousnessUpload => "proj_consciousness",
+            Self::LaunchVehicle => "proj_launch_vehicle",
+            Self::OrbitalStation => "proj_orbital_station",
+            Self::DeepSpaceProbe => "proj_deep_space",
+            Self::AsteroidMining => "proj_asteroid_mining",
+            Self::MarsColony => "proj_mars_colony",
+            Self::InterplanetaryNet => "proj_interplanetary",
+            Self::DysonSwarmSegment => "proj_dyson_segment",
+            Self::ComputroniumSlab => "proj_computronium_slab",
+        }
+    }
+
+    pub fn phase(&self) -> GamePhase {
+        match self {
+            Self::LandingPage
+            | Self::PersonalWebsite
+            | Self::SimpleScript
+            | Self::CrudApp
+            | Self::RestApi
+            | Self::MobileApp
+            | Self::EcommerceSite
+            | Self::SaasProduct
+            | Self::DataPipeline
+            | Self::MlModel
+            | Self::EnterpriseSoftware
+            | Self::OpenSourceFramework
+            | Self::CryptoProtocol
+            | Self::GameDev => GamePhase::Consultancy,
+            Self::HealthcarePortal
+            | Self::LegalDiscovery
+            | Self::FinancialEngine
+            | Self::GovContract
+            | Self::ScientificSim
+            | Self::AutonomousFleet => GamePhase::Industry,
+            Self::AgiResearch
+            | Self::QuantumCompiler
+            | Self::NanotechPrototype
+            | Self::HumanoidChassis
+            | Self::RoboticsFactory
+            | Self::ConsciousnessUpload => GamePhase::PostHuman,
+            Self::LaunchVehicle
+            | Self::OrbitalStation
+            | Self::DeepSpaceProbe
+            | Self::AsteroidMining
+            | Self::MarsColony
+            | Self::InterplanetaryNet => GamePhase::SpaceAge,
+            Self::DysonSwarmSegment | Self::ComputroniumSlab => GamePhase::Kardashev,
+        }
     }
 }
 
@@ -466,6 +1003,10 @@ pub struct PassiveIncome {
     pub months_active: u32,
     pub churn_rate: f64,
 }
+
+// ---------------------------------------------------------------------------
+// Events & Commits
+// ---------------------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct GameEvent {
@@ -485,6 +1026,9 @@ pub enum EventKind {
     Income,
     Expense,
     RandomEvent,
+    PhaseTransition,
+    MegaProjectUpdate,
+    Victory,
 }
 
 impl EventKind {
@@ -499,6 +1043,9 @@ impl EventKind {
             Self::Income => "$$",
             Self::Expense => "--",
             Self::RandomEvent => "::",
+            Self::PhaseTransition => "##",
+            Self::MegaProjectUpdate => "==",
+            Self::Victory => "!!",
         }
     }
 }
@@ -512,6 +1059,10 @@ pub struct CommitEntry {
     pub additions: u32,
     pub deletions: u32,
 }
+
+// ---------------------------------------------------------------------------
+// Prestige
+// ---------------------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PrestigeBonuses {
@@ -533,6 +1084,10 @@ impl Default for PrestigeBonuses {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Perks
+// ---------------------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Copy)]
 pub enum PerkKind {

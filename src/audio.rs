@@ -45,10 +45,22 @@ impl SfxKind {
     #[allow(dead_code)]
     fn all() -> &'static [SfxKind] {
         &[
-            Self::MenuOpen, Self::MenuClose, Self::MenuNav, Self::TabSwitch,
-            Self::Purchase, Self::CantAfford, Self::ProjectComplete, Self::AgentHired,
-            Self::Unlock, Self::BugFound, Self::RandomEvent, Self::ClientMessage,
-            Self::Pivot, Self::Reset, Self::Toggle, Self::StationChange,
+            Self::MenuOpen,
+            Self::MenuClose,
+            Self::MenuNav,
+            Self::TabSwitch,
+            Self::Purchase,
+            Self::CantAfford,
+            Self::ProjectComplete,
+            Self::AgentHired,
+            Self::Unlock,
+            Self::BugFound,
+            Self::RandomEvent,
+            Self::ClientMessage,
+            Self::Pivot,
+            Self::Reset,
+            Self::Toggle,
+            Self::StationChange,
         ]
     }
 }
@@ -109,7 +121,15 @@ mod inner {
         };
 
         let mut ambient_sink = Sink::try_new(&stream_handle).ok();
+        // Start ambient paused — reconcile() will send PlayAmbient when appropriate
+        if let Some(ref sink) = ambient_sink {
+            sink.pause();
+        }
         let radio_sink = Sink::try_new(&stream_handle).ok();
+        // Start radio paused — reconcile() will send PlayRadio when appropriate
+        if let Some(ref sink) = radio_sink {
+            sink.pause();
+        }
 
         // Load ambient tiers into memory
         let ambient_tiers = load_ambient_tiers();
@@ -154,7 +174,11 @@ mod inner {
                                     sink.stop();
                                     ambient_sink = Sink::try_new(&stream_handle).ok();
                                     if let Some(ref sink) = ambient_sink {
-                                        append_ambient_track(sink, &ambient_tiers, current_ambient_tier);
+                                        append_ambient_track(
+                                            sink,
+                                            &ambient_tiers,
+                                            current_ambient_tier,
+                                        );
                                     }
                                 }
                             }
@@ -221,7 +245,10 @@ mod inner {
                 }
                 if let Some(data_dir) = dirs::data_dir() {
                     for ext in &["mp3", "ogg", "wav"] {
-                        let path = data_dir.join("vibe-idler").join("ambient").join(format!("{}.{}", name, ext));
+                        let path = data_dir
+                            .join("vibe-idler")
+                            .join("ambient")
+                            .join(format!("{}.{}", name, ext));
                         if let Ok(data) = std::fs::read(path) {
                             return Some(data);
                         }
@@ -306,10 +333,7 @@ mod inner {
 
         for base_dir in radio_base_dirs() {
             if let Ok(entries) = std::fs::read_dir(&base_dir) {
-                let mut dirs: Vec<_> = entries
-                    .flatten()
-                    .filter(|e| e.path().is_dir())
-                    .collect();
+                let mut dirs: Vec<_> = entries.flatten().filter(|e| e.path().is_dir()).collect();
                 dirs.sort_by_key(|e| e.file_name());
 
                 for entry in dirs {
@@ -358,11 +382,7 @@ mod inner {
         tracks.sort();
     }
 
-    fn play_next_station_track(
-        sink: &Sink,
-        stations: &mut [RadioStation],
-        station_idx: usize,
-    ) {
+    fn play_next_station_track(sink: &Sink, stations: &mut [RadioStation], station_idx: usize) {
         if station_idx >= stations.len() {
             return;
         }
@@ -422,9 +442,13 @@ impl AudioPlayback {
     }
 
     pub fn reconcile(&mut self, state: &crate::game::state::GameState, audio: &AudioHandle) {
-        let should_ambient = state.unlocked_upgrades.contains(&"perk_ambient_audio_owned".to_string())
+        let should_ambient = state
+            .unlocked_upgrades
+            .contains(&"perk_ambient_audio_owned".to_string())
             && state.audio_enabled;
-        let should_radio = state.unlocked_upgrades.contains(&"perk_radio_owned".to_string())
+        let should_radio = state
+            .unlocked_upgrades
+            .contains(&"perk_radio_owned".to_string())
             && state.radio_enabled;
 
         let tier = ambient_tier_for_state(state);

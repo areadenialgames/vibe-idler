@@ -1,24 +1,31 @@
+use super::state::AgentClass;
+
 pub fn hardware_cost(base: f64, growth_rate: f64, owned: u32, prestige_reduction: f64) -> f64 {
     base * growth_rate.powi(owned as i32) * (1.0 - prestige_reduction)
 }
 
-pub fn agent_hire_cost(agents_owned: u32) -> f64 {
-    100.0 * 1.5_f64.powi(agents_owned as i32)
+pub fn agent_hire_cost(class: AgentClass, owned: u32) -> f64 {
+    class.hire_cost(owned)
 }
 
 pub fn agent_work_speed(
     llm_quality: f64,
     total_compute: f64,
-    spec_matches: bool,
+    spec_bonus: f64,
     prestige_speed_mult: f64,
     skill_level: f64,
     has_architect: bool,
 ) -> f64 {
     let base_speed = 0.1;
     let hw_factor = (1.0 + total_compute).log2() / 5.0;
-    let spec_bonus = if spec_matches { 1.5 } else { 1.0 };
     let arch_bonus = if has_architect { 1.25 } else { 1.0 };
-    base_speed * llm_quality * hw_factor * spec_bonus * prestige_speed_mult * skill_level * arch_bonus
+    base_speed
+        * llm_quality
+        * hw_factor
+        * spec_bonus
+        * prestige_speed_mult
+        * skill_level
+        * arch_bonus
 }
 
 pub fn project_work_required(base_work: f64, difficulty: u32) -> f64 {
@@ -41,11 +48,19 @@ pub fn prestige_reputation_earned(lifetime_cash_this_run: f64) -> f64 {
 }
 
 pub fn format_cash(amount: f64) -> String {
-    if amount >= 1_000_000.0 {
-        format!("${:.2}M", amount / 1_000_000.0)
-    } else if amount >= 1_000.0 {
-        format!("${:.1}K", amount / 1_000.0)
+    let abs = amount.abs();
+    let sign = if amount < 0.0 { "-" } else { "" };
+    if abs >= 1_000_000_000_000_000.0 {
+        format!("{sign}${:.2}Q", abs / 1_000_000_000_000_000.0)
+    } else if abs >= 1_000_000_000_000.0 {
+        format!("{sign}${:.2}T", abs / 1_000_000_000_000.0)
+    } else if abs >= 1_000_000_000.0 {
+        format!("{sign}${:.2}B", abs / 1_000_000_000.0)
+    } else if abs >= 1_000_000.0 {
+        format!("{sign}${:.2}M", abs / 1_000_000.0)
+    } else if abs >= 1_000.0 {
+        format!("{sign}${:.1}K", abs / 1_000.0)
     } else {
-        format!("${:.2}", amount)
+        format!("{sign}${:.2}", abs)
     }
 }

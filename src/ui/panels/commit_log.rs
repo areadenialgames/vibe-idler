@@ -6,21 +6,29 @@ use crate::ui::theme;
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     let block = Block::default()
-        .title(Span::styled(" Commit Log ", Style::default().fg(theme::ACCENT_GREEN).bold()))
+        .title(Span::styled(
+            " Commit Log ",
+            Style::default().fg(theme::ACCENT_GREEN).bold(),
+        ))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme::BORDER))
         .style(Style::default().bg(theme::BG));
 
     if app.state.commit_log.is_empty() {
-        let empty = ratatui::widgets::Paragraph::new(
-            Span::styled("  No commits yet...", Style::default().fg(theme::DIM))
-        ).block(block);
+        let empty = ratatui::widgets::Paragraph::new(Span::styled(
+            "  No commits yet...",
+            Style::default().fg(theme::DIM),
+        ))
+        .block(block);
         frame.render_widget(empty, area);
         return;
     }
 
     let max_items = (area.height.saturating_sub(2)) as usize;
-    let items: Vec<ListItem> = app.state.commit_log.iter()
+    let items: Vec<ListItem> = app
+        .state
+        .commit_log
+        .iter()
         .take(max_items)
         .map(|commit| {
             let prefix_color = match commit.message.split('(').next().unwrap_or("") {
@@ -41,10 +49,19 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
 
             let detail = Line::from(vec![
                 Span::styled("  ", Style::default()),
-                Span::styled(format!("[{}] ", commit.agent_name), Style::default().fg(theme::ACCENT_CYAN)),
-                Span::styled(format!("+{}", commit.additions), Style::default().fg(theme::ACCENT_GREEN)),
+                Span::styled(
+                    format!("[{}] ", commit.agent_name),
+                    Style::default().fg(theme::ACCENT_CYAN),
+                ),
+                Span::styled(
+                    format!("+{}", commit.additions),
+                    Style::default().fg(theme::ACCENT_GREEN),
+                ),
                 Span::styled("/", Style::default().fg(theme::DIM)),
-                Span::styled(format!("-{}", commit.deletions), Style::default().fg(theme::ACCENT_RED)),
+                Span::styled(
+                    format!("-{}", commit.deletions),
+                    Style::default().fg(theme::ACCENT_RED),
+                ),
             ]);
 
             ListItem::new(vec![line, detail])

@@ -57,8 +57,20 @@ pub fn map_key(key: KeyEvent, ui: &UiState) -> Option<Action> {
         KeyCode::Char('?') => Some(Action::OpenHelp),
         KeyCode::Char('v') => Some(Action::Pivot),
         KeyCode::Char('r') => Some(Action::ResetGame),
-        KeyCode::PageUp => if cfg!(debug_assertions) { Some(Action::SpeedUp) } else { None },
-        KeyCode::PageDown => if cfg!(debug_assertions) { Some(Action::SpeedDown) } else { None },
+        KeyCode::PageUp => {
+            if cfg!(debug_assertions) {
+                Some(Action::SpeedUp)
+            } else {
+                None
+            }
+        }
+        KeyCode::PageDown => {
+            if cfg!(debug_assertions) {
+                Some(Action::SpeedDown)
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }
