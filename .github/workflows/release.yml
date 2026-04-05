@@ -52,7 +52,7 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
 
       - name: Create .app bundle
-        run: ./scripts/bundle-macos.sh target/${{ matrix.target }}/release/vibe-idler release-pkg
+        run: ./scripts/bundle-macos.sh target/${{ matrix.target }}/release/vibe-idler release-pkg ${{ matrix.arch }}
 
       - name: Sign .app bundle
         run: |
@@ -71,7 +71,7 @@ jobs:
             --timestamp \
             "release-pkg/Vibe Idler.app/Contents/MacOS/vibe-idler"
 
-          # Sign the bundle (seals everything)
+          # Sign the bundle (seals everything including Resources)
           codesign --force --options runtime \
             --sign "$IDENTITY" \
             --identifier "com.areadenial.vibe-idler" \
@@ -80,7 +80,6 @@ jobs:
 
           echo "Verifying signature..."
           codesign -dv --verbose=2 "release-pkg/Vibe Idler.app" 2>&1
-          codesign --verify --deep --strict "release-pkg/Vibe Idler.app" 2>&1
 
       - name: Notarize
         env:

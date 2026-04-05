@@ -1,21 +1,26 @@
 #!/bin/bash
 # Creates a macOS .app bundle from the vibe-idler binary + assets
-# Usage: ./scripts/bundle-macos.sh <binary-path> <output-dir>
+# Usage: ./scripts/bundle-macos.sh <binary-path> <output-dir> [arch]
+# arch defaults to detecting from the binary, or pass "arm64" or "x86_64"
 
 set -e
 
 BINARY="$1"
 OUTPUT_DIR="$2"
+FORCE_ARCH="${3:-}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
 
 if [ -z "$BINARY" ] || [ -z "$OUTPUT_DIR" ]; then
-    echo "Usage: $0 <binary-path> <output-dir>"
+    echo "Usage: $0 <binary-path> <output-dir> [arch]"
     exit 1
 fi
 
-# Determine architecture from binary
-ARCH=$(lipo -archs "$BINARY" 2>/dev/null || echo "arm64")
+if [ -n "$FORCE_ARCH" ]; then
+    ARCH="$FORCE_ARCH"
+else
+    ARCH=$(lipo -archs "$BINARY" 2>/dev/null || echo "arm64")
+fi
 echo "Building .app bundle for architecture: $ARCH"
 
 APP_NAME="Vibe Idler"
@@ -30,9 +35,12 @@ mkdir -p "$MACOS" "$RESOURCES"
 # Copy the game binary
 cp "$BINARY" "$MACOS/vibe-idler-bin"
 
-# Copy assets
-cp -R assets "$MACOS/assets"
-find "$MACOS/assets" -name ".DS_Store" -delete
+# Copy assets into Resources (not MacOS — avoids codesign issues with data files)
+cp -R assets "$RESOURCES/assets"
+find "$RESOURCES/assets" -name ".DS_Store" -delete
+
+# Symlink so the binary finds assets/ relative to its working directory
+ln -s ../Resources/assets "$MACOS/assets"
 
 # Compile the Swift launcher for the target architecture
 echo "Compiling launcher..."
