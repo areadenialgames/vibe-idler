@@ -84,7 +84,18 @@ jobs:
 
       - name: Staple and repackage
         run: |
-          xcrun stapler staple "release-pkg/Vibe Idler.app"
+          for attempt in 1 2 3 4 5; do
+            if xcrun stapler staple "release-pkg/Vibe Idler.app"; then
+              echo "Staple succeeded on attempt $attempt"
+              break
+            fi
+            if [ $attempt -eq 5 ]; then
+              echo "Staple failed after 5 attempts"
+              exit 1
+            fi
+            echo "Staple attempt $attempt failed, waiting 30s..."
+            sleep 30
+          done
           rm vibe-idler-macos-${{ matrix.arch }}.zip
           cd release-pkg
           zip -r ../vibe-idler-macos-${{ matrix.arch }}.zip "Vibe Idler.app"
